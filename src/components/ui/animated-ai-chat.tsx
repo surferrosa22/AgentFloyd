@@ -17,12 +17,14 @@ import {
     LoaderIcon,
     Sparkles,
     Command,
+    PlusCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react"
 
 import { useChat } from '@/lib/chat-context';
 import { ChatMessageComponent } from './chat-message';
+import { useTheme } from '@/components/theme-provider';
 
 interface UseAutoResizeTextareaProps {
     minHeight: number;
@@ -153,8 +155,11 @@ export function AnimatedAIChat() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     
+    // Use theme context
+    const { resolvedTheme } = useTheme();
+    
     // Use the chat context for AI functionality
-    const { messages, isTyping, sendMessage, enhancePrompt: enhancePromptAPI } = useChat();
+    const { messages, isTyping, sendMessage, enhancePrompt: enhancePromptAPI, clearMessages } = useChat();
 
     const commandSuggestions: CommandSuggestion[] = [
         { 
@@ -314,6 +319,10 @@ export function AnimatedAIChat() {
         setTimeout(() => setRecentCommand(null), 2000);
     };
 
+    const handleNewChat = () => {
+        clearMessages();
+    };
+
     // Scroll to bottom when messages change
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -336,6 +345,30 @@ export function AnimatedAIChat() {
                 <div className="absolute top-1/4 right-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full mix-blend-normal filter blur-[96px] animate-pulse delay-1000" />
             </div>
             <div className="w-full max-w-2xl mx-auto relative flex flex-col h-full">
+                {messages.length > 0 && (
+                    <motion.div
+                        className="sticky top-4 z-20 flex justify-end mb-4"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <motion.button
+                            type="button"
+                            onClick={handleNewChat}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={cn(
+                                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                "flex items-center gap-2",
+                                "bg-white text-[#0A0A0B] shadow-lg shadow-white/10",
+                            )}
+                        >
+                            <PlusCircle className="w-4 h-4" />
+                            <span>New Chat</span>
+                        </motion.button>
+                    </motion.div>
+                )}
+                
                 <motion.div 
                     className="relative z-10 space-y-4 flex-grow overflow-y-auto"
                     initial={{ opacity: 0, y: 20 }}
