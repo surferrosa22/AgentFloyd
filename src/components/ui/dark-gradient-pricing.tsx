@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import { Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { OriginalButton } from "@/components/ui/original-button"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
 
@@ -109,12 +109,12 @@ export const PricingCard = ({
             <Benefit key={index} {...benefit} />
           ))}
         </div>
-        <Button
+        <OriginalButton
           className="w-full"
           variant={tier === "Pro" ? "default" : "ghost"}
         >
           {CTA}
-        </Button>
+        </OriginalButton>
       </Card>
     </motion.div>
   )
