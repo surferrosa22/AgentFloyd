@@ -159,7 +159,13 @@ export function AnimatedAIChat() {
     const { resolvedTheme } = useTheme();
     
     // Use the chat context for AI functionality
-    const { messages, isTyping, sendMessage, enhancePrompt: enhancePromptAPI, clearMessages } = useChat();
+    const { 
+        messages, 
+        isTyping, 
+        sendMessage, 
+        enhancePrompt: enhancePromptAPI, 
+        createNewChat 
+    } = useChat();
 
     const commandSuggestions: CommandSuggestion[] = [
         { 
@@ -320,7 +326,9 @@ export function AnimatedAIChat() {
     };
 
     const handleNewChat = () => {
-        clearMessages();
+        createNewChat();
+        setValue("");
+        adjustHeight(true);
     };
 
     // Scroll to bottom when messages change
@@ -345,31 +353,6 @@ export function AnimatedAIChat() {
                 <div className="absolute top-1/4 right-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full mix-blend-normal filter blur-[96px] animate-pulse delay-1000" />
             </div>
             <div className="w-full max-w-2xl mx-auto relative flex flex-col h-full">
-                {messages.length > 0 && (
-                    <motion.div
-                        className="fixed left-6 top-24 z-50"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <motion.button
-                            type="button"
-                            onClick={handleNewChat}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className={cn(
-                                "px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                                "flex items-center gap-2",
-                                "bg-white text-[#0A0A0B] shadow-xl",
-                                "border border-white/20"
-                            )}
-                        >
-                            <PlusCircle className="w-4 h-4" />
-                            <span>New Chat</span>
-                        </motion.button>
-                    </motion.div>
-                )}
-                
                 <motion.div 
                     className="relative z-10 space-y-4 flex-grow overflow-y-auto"
                     initial={{ opacity: 0, y: 20 }}

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ChatProvider } from "@/lib/chat-context";
+import { MiniSidebar } from "@/components/ui/mini-sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <ChatProvider>
-            {children}
+            <div className="flex min-h-screen">
+              <MiniSidebar />
+              <div className="flex-1 pl-16">{children}</div>
+            </div>
           </ChatProvider>
         </ThemeProvider>
       </body>
