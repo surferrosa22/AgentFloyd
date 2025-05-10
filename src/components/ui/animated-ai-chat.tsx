@@ -347,20 +347,21 @@ export function AnimatedAIChat() {
             <div className="w-full max-w-2xl mx-auto relative flex flex-col h-full">
                 {messages.length > 0 && (
                     <motion.div
-                        className="sticky top-4 z-20 flex justify-end mb-4"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        className="fixed left-6 top-24 z-50"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.3 }}
                     >
                         <motion.button
                             type="button"
                             onClick={handleNewChat}
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             className={cn(
-                                "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                "px-4 py-3 rounded-xl text-sm font-medium transition-all",
                                 "flex items-center gap-2",
-                                "bg-white text-[#0A0A0B] shadow-lg shadow-white/10",
+                                "bg-white text-[#0A0A0B] shadow-xl",
+                                "border border-white/20"
                             )}
                         >
                             <PlusCircle className="w-4 h-4" />
