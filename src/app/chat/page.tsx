@@ -18,6 +18,7 @@ export default function ChatPage() {
           twinkleProbability={1} 
         />
         
+        {/* Chat sidebar - only shown on chat page */}
         <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80">
           <ChatSidebar />
         </div>

@@ -17,11 +17,14 @@ export function MiniSidebar() {
   const { resolvedTheme } = useTheme();
   const pathname = usePathname();
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  
+  // Check if current page is chat page
+  const isChatPage = pathname === '/chat';
 
   const handleNewChat = () => {
     createNewChat();
     // If not already on the chat page, navigate there
-    if (pathname !== '/chat') {
+    if (!isChatPage) {
       router.push('/chat');
     }
   };
@@ -43,19 +46,21 @@ export function MiniSidebar() {
             </div>
           </Link>
 
-          {/* Show menu button only at smaller screens */}
-          <Button 
-            onClick={() => setShowMobileSidebar(!showMobileSidebar)} 
-            size="icon" 
-            variant="ghost" 
-            className="sm:hidden group relative mb-2"
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Menu</span>
-            <div className="absolute left-full ml-2 px-2 py-1 rounded bg-popover text-popover-foreground opacity-0 pointer-events-none group-hover:opacity-100 whitespace-nowrap text-xs transition-opacity">
-              Menu
-            </div>
-          </Button>
+          {/* Show menu button only at smaller screens and only on chat page */}
+          {isChatPage && (
+            <Button 
+              onClick={() => setShowMobileSidebar(!showMobileSidebar)} 
+              size="icon" 
+              variant="ghost" 
+              className="sm:hidden group relative mb-2"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Menu</span>
+              <div className="absolute left-full ml-2 px-2 py-1 rounded bg-popover text-popover-foreground opacity-0 pointer-events-none group-hover:opacity-100 whitespace-nowrap text-xs transition-opacity">
+                Menu
+              </div>
+            </Button>
+          )}
           
           <Button 
             onClick={handleNewChat} 
@@ -125,8 +130,8 @@ export function MiniSidebar() {
         </div>
       </div>
       
-      {/* Mobile chat sidebar overlay */}
-      {showMobileSidebar && (
+      {/* Mobile chat sidebar overlay - only shown on chat page */}
+      {isChatPage && showMobileSidebar && (
         <div className="sm:hidden fixed inset-0 z-40">
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" 
