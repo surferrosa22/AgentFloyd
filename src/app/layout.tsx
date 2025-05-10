@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ChatProvider } from "@/lib/chat-context";
-import { ClientLayout } from "@/components/client-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,12 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head />
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <ChatProvider>
-            <ClientLayout>
-              {children}
-            </ClientLayout>
+            <div className="flex min-h-screen">
+              <div className="flex-1">{children}</div>
+            </div>
           </ChatProvider>
         </ThemeProvider>
       </body>

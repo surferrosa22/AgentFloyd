@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { GlowEffect } from '@/components/ui/glow-effect';
 import { StarsBackground } from '@/components/ui/stars-background';
 import { NavBar } from '@/components/ui/tubelight-navbar';
-import { Home, Info, Mail, Settings, MessageSquare, HelpCircle } from 'lucide-react';
+import { Home, Info, Mail, Settings } from 'lucide-react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from '@/components/theme-provider';
@@ -80,7 +80,7 @@ export default function FloydAIAgentLanding() {
             Plans
           </Link>
           <button
-            className={`px-8 py-3 rounded-full text-base font-semibold shadow transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2
+            className={`px-8 py-3 rounded-full text-base font-semibold shadow transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer
               ${resolvedTheme === 'dark'
                 ? 'bg-transparent text-white border border-white/30 hover:bg-white/10 hover:text-white focus:ring-white'
                 : 'bg-transparent text-black border border-black/30 hover:bg-black/10 hover:text-black focus:ring-black'}

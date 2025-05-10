@@ -196,19 +196,35 @@ export function AnimatedThemeToggle({
         value={theme}
         onChange={(e) => setTheme(e.target.value as ThemeMode)}
         className={cn(
-          "appearance-none pl-9 pr-4 py-2 rounded-lg text-sm font-medium",
+          "appearance-none pl-9 pr-4 py-2 rounded-lg",
           "focus:outline-none focus:ring-2 focus:ring-offset-2",
           "transition-colors duration-300",
+          "font-sans text-base font-medium tracking-wide",
           isDark 
             ? "bg-slate-800 text-gray-100 border border-slate-700 focus:ring-slate-500" 
             : "bg-white text-gray-800 border border-gray-200 focus:ring-sky-500"
         )}
         aria-label="Select theme"
       >
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-        <option value="system">System</option>
+        <option value="light" className="font-sans text-base py-2 font-medium">Light</option>
+        <option value="dark" className="font-sans text-base py-2 font-medium">Dark</option>
+        <option value="system" className="font-sans text-base py-2 font-medium">System</option>
       </select>
+      <style jsx global>{`
+        select option {
+          font-family: ui-sans-serif, system-ui, sans-serif;
+          padding: 10px;
+          font-weight: 500;
+          font-size: 16px;
+        }
+        select {
+          padding-top: 8px;
+          padding-bottom: 8px;
+        }
+        select:focus {
+          outline: none;
+        }
+      `}</style>
       <div className="absolute top-0 bottom-0 left-2 flex items-center pointer-events-none">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

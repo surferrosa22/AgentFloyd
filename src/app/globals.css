@@ -130,3 +130,125 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Theme-specific chat styles */
+.theme-light textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.theme-light .chat-input {
+  color: rgba(0, 0, 0, 0.8);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .chat-background {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .chat-text {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.theme-light .chat-send-button {
+  background-color: #000;
+  color: #fff;
+}
+
+.theme-light .chat-muted-text {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.theme-dark textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.theme-dark .chat-input {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .chat-background {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .chat-text {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.theme-dark .chat-send-button {
+  background-color: #fff;
+  color: #000;
+}
+
+.theme-dark .chat-muted-text {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Code blocks styling for markdown */
+.prose code {
+  @apply text-xs px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono;
+}
+
+.prose pre {
+  @apply bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-3 my-2 overflow-x-auto border border-black/5 dark:border-white/10;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-black/80 dark:text-white/80 text-xs leading-relaxed;
+}
+
+.prose p {
+  @apply my-2;
+}
+
+.prose ul {
+  @apply list-disc ml-4 my-2;
+}
+
+.prose ol {
+  @apply list-decimal ml-4 my-2;
+}
+
+.prose a {
+  @apply text-violet-600 dark:text-violet-400 underline underline-offset-2;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  @apply font-medium my-4;
+}
+
+.prose h1 {
+  @apply text-xl;
+}
+
+.prose h2 {
+  @apply text-lg;
+}
+
+.prose h3 {
+  @apply text-base;
+}
+
+.prose blockquote {
+  @apply border-l-2 border-black/10 dark:border-white/20 pl-4 italic my-3;
+}
+
+/* Make scrollbars subtle */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+}

@@ -1,13 +1,51 @@
 'use client';
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatedAIChat } from '@/components/ui/animated-ai-chat';
 import { StarsBackground } from '@/components/ui/stars-background';
 import { ChatSidebar } from '@/components/ui/chat-sidebar';
+import { Component as AnimatedMenuButton } from '@/components/ui/demo';
+import { NavBar } from '@/components/ui/tubelight-navbar';
+import { Home, MessageSquare, Settings } from 'lucide-react';
+import { useTheme } from '@/components/theme-provider';
+import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  // Load sidebar state from localStorage on component mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('chatSidebarVisible');
+    if (savedState !== null) {
+      setIsSidebarVisible(savedState === 'true');
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarVisible;
+    setIsSidebarVisible(newState);
+    localStorage.setItem('chatSidebarVisible', String(newState));
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white">
+    <div className={cn(
+      "min-h-screen flex flex-col",
+      isDark ? "bg-black text-white" : "bg-white text-black"
+    )}>
+      {/* Navigation Bar */}
+      <div className="hidden md:block">
+        <NavBar
+          items={[
+            { name: 'Home', url: '/ai-agent', icon: Home },
+            { name: 'Chat', url: '/chat', icon: MessageSquare },
+            { name: 'Settings', url: '/settings', icon: Settings },
+          ]}
+          className="top-0 left-1/2 -translate-x-1/2 z-50 pt-6"
+        />
+      </div>
+
       <div className="relative flex flex-1 w-full">
         <StarsBackground 
           className="z-0 absolute inset-0" 
@@ -18,12 +56,35 @@ export default function ChatPage() {
           twinkleProbability={1} 
         />
         
-        {/* Chat sidebar - only shown on chat page */}
-        <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80">
-          <ChatSidebar />
+        {/* Sidebar */}
+        {isSidebarVisible && (
+          <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80 sticky top-0 h-screen overflow-hidden">
+            <ChatSidebar />
+          </div>
+        )}
+        
+        {/* Custom Animated Toggle Button */}
+        <div className={`fixed left-0 top-4 z-[100] hidden sm:block transition-all duration-300 ${
+          isSidebarVisible ? 'sm:ml-64 md:ml-72 lg:ml-80' : 'ml-4'
+        }`}>
+          <div 
+            className={cn(
+              "rounded-md shadow-md backdrop-blur-sm cursor-pointer",
+              isDark ? "bg-background/80" : "bg-gray-100"
+            )}
+          >
+            <AnimatedMenuButton 
+              externalOpen={isSidebarVisible} 
+              onToggle={toggleSidebar} 
+            />
+          </div>
         </div>
         
-        <div className="relative z-10 flex-1">
+        {/* Main Content - Adding theme-aware class to this container to affect inner components */}
+        <div className={cn(
+          "relative z-10 flex-1",
+          isDark ? "theme-dark" : "theme-light"
+        )}>
           <AnimatedAIChat />
         </div>
       </div>

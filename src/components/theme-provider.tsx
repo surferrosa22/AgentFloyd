@@ -19,34 +19,67 @@ function getSystemTheme() {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<ThemeMode>('system');
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [isMounted, setIsMounted] = useState(false);
 
+  // Initialize theme from localStorage
   useEffect(() => {
-    let t = theme;
-    if (t === 'system') {
-      t = getSystemTheme();
+    setIsMounted(true);
+    const savedTheme = localStorage.getItem('floyd-theme');
+    if (savedTheme) {
+      setTheme(savedTheme as ThemeMode);
     }
-    setResolvedTheme(t as 'light' | 'dark');
-    if (typeof window !== 'undefined') {
-      document.documentElement.classList.toggle('dark', t === 'dark');
-      localStorage.setItem('floyd-theme', theme);
-    }
-  }, [theme]);
+  }, []);
 
+  // Update the DOM and localStorage when theme changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('floyd-theme');
-      if (saved) setTheme(saved as ThemeMode);
-      if (theme === 'system') {
-        const listener = (e: MediaQueryListEvent) => {
-          setResolvedTheme(e.matches ? 'dark' : 'light');
-          document.documentElement.classList.toggle('dark', e.matches);
-        };
-        const mql = window.matchMedia('(prefers-color-scheme: dark)');
-        mql.addEventListener('change', listener);
-        return () => mql.removeEventListener('change', listener);
-      }
+    if (!isMounted) return;
+    
+    let resolvedThemeValue: 'light' | 'dark' = 'light';
+    
+    if (theme === 'system') {
+      resolvedThemeValue = getSystemTheme();
+    } else {
+      resolvedThemeValue = theme as 'light' | 'dark';
     }
-  }, [theme]);
+    
+    setResolvedTheme(resolvedThemeValue);
+    
+    if (resolvedThemeValue === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    localStorage.setItem('floyd-theme', theme);
+  }, [theme, isMounted]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      
+      const handleChange = (e: MediaQueryListEvent) => {
+        const newTheme = e.matches ? 'dark' : 'light';
+        setResolvedTheme(newTheme);
+        
+        if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      };
+      
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [theme, isMounted]);
+
+  // Avoid rendering with incorrect theme
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
