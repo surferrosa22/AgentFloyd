@@ -12,6 +12,7 @@ import {
   HelpCircle,
   Edit2
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function HelpPage() {
   return (
@@ -27,9 +28,22 @@ export default function HelpPage() {
         />
         
         <div className="relative z-10 container mx-auto py-12 px-4 max-w-3xl">
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-indigo-400 mb-8">
-            Help & Frequently Asked Questions
-          </h1>
+          <div className="mb-8 flex justify-between items-center">
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-indigo-400">
+              Help & FAQ
+            </h1>
+            <div className="flex space-x-4">
+              <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors">
+                Home
+              </Link>
+              <Link href="/chat" className="text-sm text-white/60 hover:text-white transition-colors">
+                Chat
+              </Link>
+              <Link href="/settings" className="text-sm text-white/60 hover:text-white transition-colors">
+                Settings
+              </Link>
+            </div>
+          </div>
           
           <div className="space-y-8">
             <section className="space-y-4">

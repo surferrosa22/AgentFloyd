@@ -78,65 +78,78 @@ export default function SettingsPage() {
         </div>
       </div>
       
-      <main className="relative z-10 pt-6 pb-6 w-full px-4 flex-grow max-w-3xl mx-auto">
-        <h1 className={`text-2xl md:text-3xl font-bold mb-6 text-center md:text-left ${resolvedTheme === 'dark' ? 'text-white' : 'text-black'}`}>
-          Settings
-        </h1>
+      <div className="container relative z-10 mx-auto px-4 py-8">
+        <div className="mb-8 flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <div className="flex space-x-4">
+            <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors">
+              Home
+            </Link>
+            <Link href="/chat" className="text-sm text-white/60 hover:text-white transition-colors">
+              Chat
+            </Link>
+            <Link href="/help" className="text-sm text-white/60 hover:text-white transition-colors">
+              Help
+            </Link>
+          </div>
+        </div>
         
-        <div className={cn(
-          "rounded-xl overflow-hidden border shadow-sm mb-4",
-          resolvedTheme === 'dark' 
-            ? "bg-zinc-900 border-zinc-800" 
-            : "bg-white border-gray-200"
-        )}>
-          <div className="p-4 md:p-6">
-            <h2 className={`text-lg font-medium mb-4 ${resolvedTheme === 'dark' ? 'text-white' : 'text-black'}`}>
-              Appearance
-            </h2>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-3 items-center">
-                  {resolvedTheme === 'dark' ? (
-                    <Moon className="text-blue-400" size={20} />
-                  ) : (
-                    <Sun className="text-yellow-500" size={20} />
-                  )}
-                  <span className={resolvedTheme === 'dark' ? 'text-white' : 'text-black'}>
-                    Theme
-                  </span>
-                </div>
-                
-                <div className="flex items-center">
-                  <AnimatedThemeToggle mode="dropdown" />
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className={cn(
+            "rounded-xl overflow-hidden border shadow-sm mb-4",
+            resolvedTheme === 'dark' 
+              ? "bg-zinc-900 border-zinc-800" 
+              : "bg-white border-gray-200"
+          )}>
+            <div className="p-4 md:p-6">
+              <h2 className={`text-lg font-medium mb-4 ${resolvedTheme === 'dark' ? 'text-white' : 'text-black'}`}>
+                Appearance
+              </h2>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-3 items-center">
+                    {resolvedTheme === 'dark' ? (
+                      <Moon className="text-blue-400" size={20} />
+                    ) : (
+                      <Sun className="text-yellow-500" size={20} />
+                    )}
+                    <span className={resolvedTheme === 'dark' ? 'text-white' : 'text-black'}>
+                      Theme
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <AnimatedThemeToggle mode="dropdown" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className={cn(
-          "rounded-xl overflow-hidden border shadow-sm mb-4",
-          resolvedTheme === 'dark' 
-            ? "bg-zinc-900 border-zinc-800" 
-            : "bg-white border-gray-200"
-        )}>
-          <div className="p-4 md:p-6">
-            <h2 className={`text-lg font-medium mb-4 ${resolvedTheme === 'dark' ? 'text-white' : 'text-black'}`}>
-              About
-            </h2>
-            
-            <div className="flex flex-col gap-2 text-sm">
-              <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                Floyd AI Agent v0.1.0
-              </p>
-              <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
-                © 2023 Floyd AI. All rights reserved.
-              </p>
+          
+          <div className={cn(
+            "rounded-xl overflow-hidden border shadow-sm mb-4",
+            resolvedTheme === 'dark' 
+              ? "bg-zinc-900 border-zinc-800" 
+              : "bg-white border-gray-200"
+          )}>
+            <div className="p-4 md:p-6">
+              <h2 className={`text-lg font-medium mb-4 ${resolvedTheme === 'dark' ? 'text-white' : 'text-black'}`}>
+                About
+              </h2>
+              
+              <div className="flex flex-col gap-2 text-sm">
+                <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  Floyd AI Agent v0.1.0
+                </p>
+                <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                  © 2023 Floyd AI. All rights reserved.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 } 

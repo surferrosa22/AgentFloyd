@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { GlowEffect } from '@/components/ui/glow-effect';
 import { StarsBackground } from '@/components/ui/stars-background';
 import { NavBar } from '@/components/ui/tubelight-navbar';
-import { Home, Info, Mail, Settings } from 'lucide-react';
+import { Home, Info, Mail, Settings, MessageSquare, HelpCircle } from 'lucide-react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from '@/components/theme-provider';
