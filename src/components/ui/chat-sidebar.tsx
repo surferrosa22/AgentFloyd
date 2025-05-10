@@ -44,7 +44,7 @@ export function ChatSidebar() {
   };
   
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-black/30 backdrop-blur-lg border-r border-white/5">
+    <div className="h-full flex flex-col overflow-hidden bg-black/10 backdrop-blur-sm border-r border-white/5">
       <div className="p-4">
         <Button
           onClick={handleNewChat}
@@ -63,8 +63,8 @@ export function ChatSidebar() {
             className={cn(
               "group flex items-center justify-between rounded-lg p-2 text-sm transition-colors",
               currentChatId === chat.id 
-                ? "bg-primary/20 text-primary" 
-                : "hover:bg-white/5 text-white/70"
+                ? "bg-primary/15 text-primary backdrop-blur-md" 
+                : "hover:bg-white/5 text-white/70 hover:backdrop-blur-md"
             )}
           >
             {editingChatId === chat.id ? (
@@ -77,7 +77,7 @@ export function ChatSidebar() {
                     if (e.key === 'Enter') saveTitle(chat.id);
                     if (e.key === 'Escape') cancelEditing();
                   }}
-                  className="flex-1 bg-black/20 px-2 py-1 rounded text-white outline-none border border-white/10 focus:ring-1 focus:ring-primary/50"
+                  className="flex-1 bg-black/10 backdrop-blur-sm px-2 py-1 rounded text-white outline-none border border-white/10 focus:ring-1 focus:ring-primary/50"
                   ref={(input) => input?.focus()}
                 />
                 <Button variant="ghost" size="icon" onClick={() => saveTitle(chat.id)}>

@@ -129,7 +129,7 @@ export function MiniSidebar() {
       {showMobileSidebar && (
         <div className="sm:hidden fixed inset-0 z-40">
           <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" 
             onClick={() => setShowMobileSidebar(false)}
             onKeyDown={(e) => e.key === 'Escape' && setShowMobileSidebar(false)}
             role="button"
