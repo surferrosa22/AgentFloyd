@@ -21,6 +21,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react"
 
+import { useChat } from '@/lib/chat-context';
+import { ChatMessageComponent } from './chat-message';
+
 interface UseAutoResizeTextareaProps {
     minHeight: number;
     maxHeight?: number;
@@ -137,10 +140,8 @@ Textarea.displayName = "Textarea"
 export function AnimatedAIChat() {
     const [value, setValue] = useState("");
     const [attachments, setAttachments] = useState<string[]>([]);
-    const [isTyping, setIsTyping] = useState(false);
-    const [isPending, startTransition] = useTransition();
-    const [activeSuggestion, setActiveSuggestion] = useState<number>(-1);
     const [showCommandPalette, setShowCommandPalette] = useState(false);
+    const [activeSuggestion, setActiveSuggestion] = useState<number>(-1);
     const [recentCommand, setRecentCommand] = useState<string | null>(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const { textareaRef, adjustHeight } = useAutoResizeTextarea({
@@ -150,6 +151,10 @@ export function AnimatedAIChat() {
     const [inputFocused, setInputFocused] = useState(false);
     const commandPaletteRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    
+    // Use the chat context for AI functionality
+    const { messages, isTyping, sendMessage, enhancePrompt: enhancePromptAPI } = useChat();
 
     const commandSuggestions: CommandSuggestion[] = [
         { 
@@ -261,39 +266,17 @@ export function AnimatedAIChat() {
 
     const handleSendMessage = () => {
         if (value.trim()) {
-            startTransition(() => {
-                setIsTyping(true);
-                setTimeout(() => {
-                    setIsTyping(false);
-                    setValue("");
-                    adjustHeight(true);
-                }, 3000);
-            });
+            sendMessage(value.trim());
+            setValue("");
+            adjustHeight(true);
         }
     };
 
-    const handleEnhancePrompt = () => {
+    const handleEnhancePrompt = async () => {
         if (!value.trim()) return;
         
-        // Store original value for reference
-        const originalValue = value.trim();
-        
-        // Replace with an enhanced version of the prompt
-        // In a real implementation, this would call an AI service to enhance the prompt
-        let enhancedPrompt = "";
-        
-        if (originalValue.endsWith("?")) {
-            // If it's a question, make it more specific and detailed
-            enhancedPrompt = `I'd like a comprehensive explanation of "${originalValue.slice(0, -1)}". Please include key concepts, historical context, and practical applications where relevant.`;
-        } else if (originalValue.toLowerCase().startsWith("explain")) {
-            // If it's an explanation request, enhance with more structure
-            enhancedPrompt = `${originalValue}\n\nPlease structure your explanation with:\n- Core concepts and definitions\n- Key principles\n- Practical examples\n- Common misconceptions`;
-        } else {
-            // For other types of prompts
-            enhancedPrompt = `Please provide a detailed response about "${originalValue}". Include relevant background information, key points, and specific examples where possible.`;
-        }
-        
-        // Set the enhanced value
+        // Use the actual AI-powered prompt enhancer
+        const enhancedPrompt = await enhancePromptAPI(value.trim());
         setValue(enhancedPrompt);
         
         // Adjust height for the new content
@@ -331,6 +314,13 @@ export function AnimatedAIChat() {
         setTimeout(() => setRecentCommand(null), 2000);
     };
 
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages]);
+
     return (
         <div className="min-h-screen flex flex-col w-full items-center justify-center bg-transparent text-white p-6 relative overflow-hidden">
             <input
@@ -345,221 +335,230 @@ export function AnimatedAIChat() {
                 <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full mix-blend-normal filter blur-[128px] animate-pulse delay-700" />
                 <div className="absolute top-1/4 right-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full mix-blend-normal filter blur-[96px] animate-pulse delay-1000" />
             </div>
-            <div className="w-full max-w-2xl mx-auto relative">
+            <div className="w-full max-w-2xl mx-auto relative flex flex-col h-full">
                 <motion.div 
-                    className="relative z-10 space-y-12"
+                    className="relative z-10 space-y-4 flex-grow overflow-y-auto"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                    <div className="text-center space-y-3">
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2, duration: 0.5 }}
-                            className="inline-block"
-                        >
-                            <h1 className="text-3xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/40 pb-1">
-                                How can I help today?
-                            </h1>
-                            <motion.div 
-                                className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: "100%", opacity: 1 }}
-                                transition={{ delay: 0.5, duration: 0.8 }}
-                            />
-                        </motion.div>
-                        <motion.p 
-                            className="text-sm text-white/40"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                        >
-                            Ask a question
-                        </motion.p>
-                    </div>
-
-                    <motion.div 
-                        className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl"
-                        initial={{ scale: 0.98 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        <AnimatePresence>
-                            {showCommandPalette && (
+                    {messages.length === 0 ? (
+                        <div className="text-center space-y-3 my-12">
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                                className="inline-block"
+                            >
+                                <h1 className="text-3xl font-medium tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white/90 to-white/40 pb-1">
+                                    How can I help today?
+                                </h1>
                                 <motion.div 
-                                    ref={commandPaletteRef}
-                                    className="absolute left-4 right-4 bottom-full mb-2 backdrop-blur-xl bg-black/90 rounded-lg z-50 shadow-lg border border-white/10 overflow-hidden"
-                                    initial={{ opacity: 0, y: 5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 5 }}
-                                    transition={{ duration: 0.15 }}
-                                >
-                                    <div className="py-1 bg-black/95">
-                                        {commandSuggestions.map((suggestion, index) => (
-                                            <motion.div
-                                                key={suggestion.prefix}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-3 py-2 text-xs transition-colors cursor-pointer",
-                                                    activeSuggestion === index 
-                                                        ? "bg-white/10 text-white" 
-                                                        : "text-white/70 hover:bg-white/5"
-                                                )}
-                                                onClick={() => selectCommandSuggestion(index)}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: index * 0.03 }}
-                                            >
-                                                <div className="w-5 h-5 flex items-center justify-center text-white/60">
-                                                    {suggestion.icon}
-                                                </div>
-                                                <div className="font-medium">{suggestion.label}</div>
-                                                <div className="text-white/40 text-xs ml-1">
-                                                    {suggestion.prefix}
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        <div className="p-4">
-                            <Textarea
-                                ref={textareaRef}
-                                value={value}
-                                onChange={(e) => {
-                                    setValue(e.target.value);
-                                    adjustHeight();
-                                }}
-                                onKeyDown={handleKeyDown}
-                                onFocus={() => setInputFocused(true)}
-                                onBlur={() => setInputFocused(false)}
-                                placeholder="Ask Floyd a question..."
-                                containerClassName="w-full"
-                                className={cn(
-                                    "w-full px-4 py-3",
-                                    "resize-none",
-                                    "bg-transparent",
-                                    "border-none",
-                                    "text-white/90 text-sm",
-                                    "focus:outline-none",
-                                    "placeholder:text-white/20",
-                                    "min-h-[60px]"
-                                )}
-                                style={{
-                                    overflow: "hidden",
-                                }}
-                                showRing={false}
-                            />
+                                    className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                    initial={{ width: 0, opacity: 0 }}
+                                    animate={{ width: "100%", opacity: 1 }}
+                                    transition={{ delay: 0.5, duration: 0.8 }}
+                                />
+                            </motion.div>
+                            <motion.p 
+                                className="text-sm text-white/40"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                Ask a question
+                            </motion.p>
                         </div>
+                    ) : (
+                        <div className="space-y-1 pt-4 pb-20">
+                            {messages.map((message) => (
+                                <ChatMessageComponent key={message.id} message={message} />
+                            ))}
+                            <div ref={messagesEndRef} />
+                        </div>
+                    )}
+                </motion.div>
 
-                        <AnimatePresence>
-                            {attachments.length > 0 && (
-                                <motion.div 
-                                    className="px-4 pb-3 flex gap-2 flex-wrap"
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                >
-                                    {attachments.map((file, index) => (
+                <motion.div 
+                    className="relative backdrop-blur-2xl bg-white/[0.02] rounded-2xl border border-white/[0.05] shadow-2xl mt-auto sticky bottom-0 z-20"
+                    initial={{ scale: 0.98 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <AnimatePresence>
+                        {showCommandPalette && (
+                            <motion.div 
+                                ref={commandPaletteRef}
+                                className="absolute left-4 right-4 bottom-full mb-2 backdrop-blur-xl bg-black/90 rounded-lg z-50 shadow-lg border border-white/10 overflow-hidden"
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 5 }}
+                                transition={{ duration: 0.15 }}
+                            >
+                                <div className="py-1 bg-black/95">
+                                    {commandSuggestions.map((suggestion, index) => (
                                         <motion.div
-                                            key={index}
-                                            className="flex items-center gap-2 text-xs bg-white/[0.03] py-1.5 px-3 rounded-lg text-white/70"
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            key={suggestion.prefix}
+                                            className={cn(
+                                                "flex items-center gap-2 px-3 py-2 text-xs transition-colors cursor-pointer",
+                                                activeSuggestion === index 
+                                                    ? "bg-white/10 text-white" 
+                                                    : "text-white/70 hover:bg-white/5"
+                                            )}
+                                            onClick={() => selectCommandSuggestion(index)}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: index * 0.03 }}
                                         >
-                                            <span>{file}</span>
-                                            <button 
-                                                onClick={() => removeAttachment(index)}
-                                                className="text-white/40 hover:text-white transition-colors"
-                                            >
-                                                <XIcon className="w-3 h-3" />
-                                            </button>
+                                            <div className="w-5 h-5 flex items-center justify-center text-white/60">
+                                                {suggestion.icon}
+                                            </div>
+                                            <div className="font-medium">{suggestion.label}</div>
+                                            <div className="text-white/40 text-xs ml-1">
+                                                {suggestion.prefix}
+                                            </div>
                                         </motion.div>
                                     ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                        <div className="p-4 border-t border-white/[0.05] flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <motion.button
-                                    type="button"
-                                    onClick={handleAttachFile}
-                                    whileTap={{ scale: 0.94 }}
-                                    className="p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group"
-                                >
-                                    <Paperclip className="w-4 h-4" />
-                                    <motion.span
-                                        className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                        layoutId="button-highlight"
-                                    />
-                                </motion.button>
-                                <motion.button
-                                    type="button"
-                                    data-command-button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowCommandPalette(prev => !prev);
-                                    }}
-                                    whileTap={{ scale: 0.94 }}
-                                    className={cn(
-                                        "p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group",
-                                        showCommandPalette && "bg-white/10 text-white/90"
-                                    )}
-                                >
-                                    <Command className="w-4 h-4" />
-                                    <motion.span
-                                        className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                        layoutId="button-highlight"
-                                    />
-                                </motion.button>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <motion.button
-                                    type="button"
-                                    onClick={handleEnhancePrompt}
-                                    whileHover={{ scale: 1.01 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    disabled={!value.trim()}
-                                    className={cn(
-                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-                                        value.trim()
-                                            ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
-                                            : "bg-white/[0.03] text-white/30 cursor-not-allowed"
-                                    )}
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span>Enhance</span>
-                                </motion.button>
-                                
-                                <motion.button
-                                    type="button"
-                                    onClick={handleSendMessage}
-                                    whileHover={{ scale: 1.01 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    disabled={isTyping || !value.trim()}
-                                    className={cn(
-                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                                        "flex items-center gap-2",
-                                        value.trim()
-                                            ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10"
-                                            : "bg-white/[0.05] text-white/40"
-                                    )}
-                                >
-                                    {isTyping ? (
-                                        <LoaderIcon className="w-4 h-4 animate-[spin_2s_linear_infinite]" />
-                                    ) : (
-                                        <SendIcon className="w-4 h-4" />
-                                    )}
-                                    <span>Send</span>
-                                </motion.button>
-                            </div>
+                    <div className="p-4">
+                        <Textarea
+                            ref={textareaRef}
+                            value={value}
+                            onChange={(e) => {
+                                setValue(e.target.value);
+                                adjustHeight();
+                            }}
+                            onKeyDown={handleKeyDown}
+                            onFocus={() => setInputFocused(true)}
+                            onBlur={() => setInputFocused(false)}
+                            placeholder="Ask Floyd a question..."
+                            containerClassName="w-full"
+                            className={cn(
+                                "w-full px-4 py-3",
+                                "resize-none",
+                                "bg-transparent",
+                                "border-none",
+                                "text-white/90 text-sm",
+                                "focus:outline-none",
+                                "placeholder:text-white/20",
+                                "min-h-[60px]"
+                            )}
+                            style={{
+                                overflow: "hidden",
+                            }}
+                            showRing={false}
+                        />
+                    </div>
+
+                    <AnimatePresence>
+                        {attachments.length > 0 && (
+                            <motion.div 
+                                className="px-4 pb-3 flex gap-2 flex-wrap"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                            >
+                                {attachments.map((file, index) => (
+                                    <motion.div
+                                        key={index}
+                                        className="flex items-center gap-2 text-xs bg-white/[0.03] py-1.5 px-3 rounded-lg text-white/70"
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                    >
+                                        <span>{file}</span>
+                                        <button 
+                                            onClick={() => removeAttachment(index)}
+                                            className="text-white/40 hover:text-white transition-colors"
+                                        >
+                                            <XIcon className="w-3 h-3" />
+                                        </button>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <div className="p-4 border-t border-white/[0.05] flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <motion.button
+                                type="button"
+                                onClick={handleAttachFile}
+                                whileTap={{ scale: 0.94 }}
+                                className="p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group"
+                            >
+                                <Paperclip className="w-4 h-4" />
+                                <motion.span
+                                    className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                    layoutId="button-highlight"
+                                />
+                            </motion.button>
+                            <motion.button
+                                type="button"
+                                data-command-button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowCommandPalette(prev => !prev);
+                                }}
+                                whileTap={{ scale: 0.94 }}
+                                className={cn(
+                                    "p-2 text-white/40 hover:text-white/90 rounded-lg transition-colors relative group",
+                                    showCommandPalette && "bg-white/10 text-white/90"
+                                )}
+                            >
+                                <Command className="w-4 h-4" />
+                                <motion.span
+                                    className="absolute inset-0 bg-white/[0.05] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                    layoutId="button-highlight"
+                                />
+                            </motion.button>
                         </div>
-                    </motion.div>
+                        
+                        <div className="flex items-center gap-2">
+                            <motion.button
+                                type="button"
+                                onClick={handleEnhancePrompt}
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.98 }}
+                                disabled={!value.trim()}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                                    value.trim()
+                                        ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
+                                        : "bg-white/[0.03] text-white/30 cursor-not-allowed"
+                                )}
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Enhance</span>
+                            </motion.button>
+                            
+                            <motion.button
+                                type="button"
+                                onClick={handleSendMessage}
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.98 }}
+                                disabled={isTyping || !value.trim()}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    "flex items-center gap-2",
+                                    value.trim()
+                                        ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10"
+                                        : "bg-white/[0.05] text-white/40"
+                                )}
+                            >
+                                {isTyping ? (
+                                    <LoaderIcon className="w-4 h-4 animate-[spin_2s_linear_infinite]" />
+                                ) : (
+                                    <SendIcon className="w-4 h-4" />
+                                )}
+                                <span>Send</span>
+                            </motion.button>
+                        </div>
+                    </div>
                 </motion.div>
             </div>
 
