@@ -1,6 +1,6 @@
 'use client';
 
-import type React from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { SendIcon, Paperclip, Command, Sparkles, LoaderIcon, Mic, MicOff } from "lucide-react";
@@ -17,10 +17,8 @@ interface ChatInputProps {
   isTyping?: boolean;
   showCommands?: boolean;
   isListening?: boolean;
-  inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onFocus?: () => void;
-  onBlur?: () => void;
   placeholder?: string;
   className?: string;
 }
@@ -39,9 +37,7 @@ export function ChatInput({
   inputRef,
   onKeyDown,
   placeholder = "Ask a question...",
-  className,
-  onFocus,
-  onBlur
+  className
 }: ChatInputProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -54,8 +50,6 @@ export function ChatInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
           placeholder={placeholder}
           className={cn(
             "w-full px-4 py-3",
@@ -122,25 +116,46 @@ export function ChatInput({
             </motion.button>
           )}
           
-          <motion.button
-            type="button"
-            onClick={onVoiceInput}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer",
-              isListening
-                ? isDark
-                  ? "bg-red-500/80 text-white hover:bg-red-500/90"
-                  : "bg-red-500/80 text-white hover:bg-red-500/90"
-                : isDark
-                  ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
-                  : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
-            )}
-          >
-            {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-            <span>{isListening ? "Stop" : "Voice"}</span>
-          </motion.button>
+          {onVoiceInput && (
+            <motion.button
+              type="button"
+              onClick={onVoiceInput}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer relative",
+                isListening
+                  ? isDark
+                    ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                    : "bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                  : isDark
+                    ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
+                    : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
+              )}
+            >
+              {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              <span>{isListening ? "Stop" : "Voice"}</span>
+              
+              {/* Pulsing circle animation when recording */}
+              {isListening && (
+                <motion.span
+                  className={cn(
+                    "absolute inset-0 rounded-lg opacity-30",
+                    isDark ? "bg-red-500" : "bg-red-500"
+                  )}
+                  animate={{
+                    scale: [1, 1.05, 1],
+                    opacity: [0.1, 0.2, 0.1]
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut"
+                  }}
+                />
+              )}
+            </motion.button>
+          )}
           
           <motion.button
             type="button"

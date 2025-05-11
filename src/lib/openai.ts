@@ -29,6 +29,43 @@ export async function generateChatCompletion(messages: Array<{ role: 'user' | 'a
   }
 }
 
+// New function for streaming chat completions
+export async function streamChatCompletion(messages: Array<{ role: 'user' | 'assistant' | 'system', content: string }>, 
+                                          onChunk: (chunk: string) => void, 
+                                          onComplete?: (fullResponse: string) => void) {
+  try {
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.7,
+      max_tokens: 2048,
+      stream: true,
+    });
+
+    let fullResponse = '';
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        fullResponse += content;
+        onChunk(content);
+      }
+    }
+
+    if (onComplete) {
+      onComplete(fullResponse);
+    }
+
+    return {
+      content: fullResponse,
+      usage: null, // Usage statistics not available in streaming mode
+    };
+  } catch (error) {
+    console.error('Error streaming chat completion:', error);
+    throw error;
+  }
+}
+
 export async function enhancePrompt(prompt: string) {
   try {
     const response = await openai.chat.completions.create({

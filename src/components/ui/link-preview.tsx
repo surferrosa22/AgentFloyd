@@ -251,7 +251,14 @@ export const HoverPeek = ({
                                             className="flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-xs font-sans"
                                             style={{ width: peekWidth, height: peekHeight }}
                                         >
-                                            Preview unavailable
+                                            {isStatic && url.includes('terms') ? (
+                                                <div className="flex flex-col items-center justify-center p-4 text-center">
+                                                    <h3 className="font-bold text-sm mb-2">Terms and Conditions</h3>
+                                                    <p className="text-xs">Click to view our terms, privacy policy, and usage guidelines.</p>
+                                                </div>
+                                            ) : (
+                                                "Preview unavailable"
+                                            )}
                                         </div>
                                     ) : (
                                         // The base preview image.

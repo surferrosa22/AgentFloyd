@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useChat } from '@/lib/chat-context';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, MessageSquare, Edit2, Trash2, Check, X, Settings } from 'lucide-react';
+import { PlusCircle, MessageSquare, Edit2, Trash2, Check, X, Settings, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useTheme } from '@/components/theme-provider';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function ChatSidebar() {
   const { 
@@ -24,6 +25,7 @@ export function ChatSidebar() {
   
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   
   // Sort chats by updatedAt (newest first)
   const sortedChats = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -46,6 +48,20 @@ export function ChatSidebar() {
   
   const cancelEditing = () => {
     setEditingChatId(null);
+  };
+  
+  const handleDeleteClick = (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDelete(chatId);
+  };
+  
+  const handleConfirmDelete = (chatId: string) => {
+    deleteChat(chatId);
+    setConfirmDelete(null);
+  };
+  
+  const handleCancelDelete = () => {
+    setConfirmDelete(null);
   };
   
   return (
@@ -71,7 +87,7 @@ export function ChatSidebar() {
           <div 
             key={chat.id} 
             className={cn(
-              "group flex items-center justify-between rounded-lg p-2 text-sm transition-colors",
+              "group flex items-center justify-between rounded-lg p-2 text-sm transition-colors relative",
               currentChatId === chat.id 
                 ? isDark 
                   ? "bg-primary/15 text-primary backdrop-blur-md" 
@@ -81,6 +97,52 @@ export function ChatSidebar() {
                   : "hover:bg-black/5 text-black/70 hover:backdrop-blur-md"
             )}
           >
+            <AnimatePresence>
+              {confirmDelete === chat.id && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className={cn(
+                    "absolute inset-0 z-10 flex items-center justify-between px-3 py-2 rounded-lg shadow-md",
+                    isDark 
+                      ? "bg-gray-900/95 border border-red-900/30" 
+                      : "bg-white/95 border border-red-200"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className={cn("h-4 w-4", isDark ? "text-red-400" : "text-red-600")} />
+                    <span className="text-xs font-medium">Delete this chat?</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelDelete();
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfirmDelete(chat.id);
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {editingChatId === chat.id ? (
               <div className="flex flex-1 items-center gap-2">
                 <input
@@ -142,10 +204,7 @@ export function ChatSidebar() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteChat(chat.id);
-                    }}
+                    onClick={(e) => handleDeleteClick(chat.id, e)}
                     className={cn(
                       "h-7 w-7", 
                       isDark 

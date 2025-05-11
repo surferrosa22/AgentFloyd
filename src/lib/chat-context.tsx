@@ -1,7 +1,10 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ChatMessage, generateUniqueId } from './utils';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { generateUniqueId } from './utils';
+import type { ChatMessage } from './utils';
+import { toggleVoiceOutput, toggleElevenLabsVoice } from '@/components/ui/chat-message';
 
 interface Chat {
   id: string;
@@ -40,6 +43,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // All features are enabled by default
+  const [isRealtimeEnabled] = useState(true);
+  const [isVoiceEnabled] = useState(true);
+  const [isElevenLabsEnabled] = useState(true);
 
   // Current chat's messages for convenience
   const messages = currentChatId 
@@ -50,6 +58,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedChats = localStorage.getItem('floyd-chats');
     const storedCurrentChatId = localStorage.getItem('floyd-current-chat-id');
+    
+    // Enable voice and ElevenLabs by default
+    toggleVoiceOutput(true);
+    toggleElevenLabsVoice(true);
     
     if (storedChats) {
       try {
@@ -91,15 +103,76 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save chats to localStorage when they change
+  // Audio streaming states
+  const [isStreamingAudio, setIsStreamingAudio] = useState(false);
+  const [audioQueue, setAudioQueue] = useState<string[]>([]);
+  const audioContext = useRef<AudioContext | null>(null);
+  const audioBuffers = useRef<AudioBuffer[]>([]);
+  const isSpeaking = useRef<boolean>(false);
+  
+  // Initialize audio context on client-side
   useEffect(() => {
-    if (chats.length > 0) {
-      localStorage.setItem('floyd-chats', JSON.stringify(chats));
+    if (typeof window !== 'undefined') {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        audioContext.current = new AudioContext();
+      }
     }
-    if (currentChatId) {
-      localStorage.setItem('floyd-current-chat-id', currentChatId);
+    
+    return () => {
+      if (audioContext.current) {
+        audioContext.current.close();
+      }
+    };
+  }, []);
+  
+  // Process audio queue
+  useEffect(() => {
+    if (!isStreamingAudio || audioQueue.length === 0 || !audioContext.current || isSpeaking.current) {
+      return;
     }
-  }, [chats, currentChatId]);
+    
+    const playNextChunk = async () => {
+      if (audioQueue.length === 0) {
+        return;
+      }
+      
+      try {
+        isSpeaking.current = true;
+        const base64Audio = audioQueue[0];
+        
+        // Convert base64 to ArrayBuffer
+        const binaryString = window.atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Decode audio data
+        const audioBuffer = await audioContext.current.decodeAudioData(bytes.buffer);
+        
+        // Create and connect source
+        const source = audioContext.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.current.destination);
+        
+        // Play the audio
+        source.start(0);
+        
+        // When finished, remove from queue and play next
+        source.onended = () => {
+          setAudioQueue(prev => prev.slice(1));
+          isSpeaking.current = false;
+        };
+      } catch (error) {
+        console.error('Error playing audio chunk:', error);
+        setAudioQueue(prev => prev.slice(1));
+        isSpeaking.current = false;
+      }
+    };
+    
+    playNextChunk();
+  }, [audioQueue, isStreamingAudio]);
 
   const addMessage = (content: string, role: 'user' | 'assistant' | 'system') => {
     if (!currentChatId) return null;
@@ -179,24 +252,236 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           content
         }];
         
-        // Continue with API call
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ messages: apiMessages }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to get response from API');
+        // Create placeholder for streaming response
+        const placeholderMessage = addMessage('', 'assistant');
+        
+        // Skip if unable to create placeholder message
+        if (!placeholderMessage) {
+          console.error('Failed to create placeholder message');
+          return;
         }
 
-        const data = await response.json();
-        const assistantResponse = data.response.content;
+        const placeholderMessageId = placeholderMessage.id;
+        
+        // Update the placeholder message to mark it as streaming
+        setChats(prevChats => {
+          return prevChats.map(chat => {
+            if (chat.id === newChatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map(msg => 
+                  msg.id === placeholderMessageId 
+                    ? { ...msg, isGenerating: true } 
+                    : msg
+                )
+              };
+            }
+            return chat;
+          });
+        });
+        
+        setIsTyping(false);
 
-        // Add assistant response to the new chat
-        addMessage(assistantResponse, 'assistant');
+        // Use streaming by default
+        const eventSource = new EventSource(`/api/chat/stream?t=${Date.now()}`);
+        
+        // Setup event handlers for SSE
+        eventSource.onopen = () => {
+          console.log('SSE connection opened');
+          // Send the initial message once the connection is established
+          fetch('/api/chat/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: apiMessages }),
+          }).catch(error => {
+            console.error('Error sending initial SSE message:', error);
+            eventSource.close();
+          });
+        };
+        
+        let responseText = '';
+        
+        eventSource.onmessage = (event) => {
+          if (event.data === '[DONE]') {
+            eventSource.close();
+            // Mark the message as complete
+            setChats(prevChats => {
+              return prevChats.map(chat => {
+                if (chat.id === newChatId) {
+                  return {
+                    ...chat,
+                    messages: chat.messages.map(msg => 
+                      msg.id === placeholderMessageId
+                        ? { ...msg, isGenerating: false } 
+                        : msg
+                    )
+                  };
+                }
+                return chat;
+              });
+            });
+            return;
+          }
+          
+          try {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+              console.error('SSE error:', data.error);
+              eventSource.close();
+              return;
+            }
+            
+            if (data.chunk) {
+              responseText += data.chunk;
+              // Update message with the latest chunk
+              setChats(prevChats => {
+                return prevChats.map(chat => {
+                  if (chat.id === newChatId) {
+                    return {
+                      ...chat,
+                      messages: chat.messages.map(msg => 
+                        msg.id === placeholderMessageId
+                          ? { ...msg, content: responseText, isGenerating: true } 
+                        : msg
+                      ),
+                      updatedAt: Date.now()
+                    };
+                  }
+                  return chat;
+                });
+              });
+              
+              // Emit event for scrolling
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('floyd-message-updated', {
+                  detail: { messageId: placeholderMessageId }
+                }));
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing SSE data:', error, event.data);
+          }
+        };
+        
+        eventSource.onerror = (error) => {
+          console.error('SSE error:', error);
+          eventSource.close();
+          // Mark message as complete in case of error
+          setChats(prevChats => {
+            return prevChats.map(chat => {
+              if (chat.id === newChatId) {
+                return {
+                  ...chat,
+                  messages: chat.messages.map(msg => 
+                    msg.id === placeholderMessageId
+                      ? { ...msg, isGenerating: false } 
+                      : msg
+                  )
+                };
+              }
+              return chat;
+            });
+          });
+        };
+
+        // Add audio streaming by default
+        setIsStreamingAudio(true);
+        setAudioQueue([]); // Clear any existing audio queue
+        
+        // Set up audio event listener
+        const audioEventListener = (event: MessageEvent) => {
+          if (event.data === '[DONE]') {
+            setIsStreamingAudio(false);
+            return;
+          }
+          
+          try {
+            const data = JSON.parse(event.data);
+            if (data.audio) {
+              // Add audio chunk to queue
+              setAudioQueue(prev => [...prev, data.audio]);
+            }
+          } catch (error) {
+            console.error('Error parsing audio event data:', error);
+          }
+        };
+        
+        // Create a separate EventSource for audio streaming
+        const audioEventSource = new EventSource(`/api/tts/stream?t=${Date.now()}`);
+        audioEventSource.addEventListener('message', audioEventListener);
+        
+        // Clean up function
+        const cleanupAudioStream = () => {
+          audioEventSource.removeEventListener('message', audioEventListener);
+          audioEventSource.close();
+          setIsStreamingAudio(false);
+        };
+        
+        // Set up error handler
+        audioEventSource.onerror = () => {
+          console.error('Audio stream error');
+          cleanupAudioStream();
+        };
+        
+        // Send the streamed text to the audio API as it's generated
+        let textToSpeak = '';
+        
+        const originalTextListener = eventSource.onmessage;
+        eventSource.onmessage = (event) => {
+          // Call the original listener first
+          if (originalTextListener) {
+            originalTextListener.call(eventSource, event);
+          }
+          
+          // Process for audio streaming
+          if (event.data === '[DONE]') {
+            // Send any remaining text for speech
+            if (textToSpeak.trim()) {
+              fetch('/api/tts/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  text: textToSpeak,
+                  // Add voice options if needed
+                }),
+              }).catch(error => {
+                console.error('Error sending final text chunk for TTS:', error);
+              });
+              textToSpeak = '';
+            }
+            
+            // Clean up audio stream after a delay to allow final chunks to process
+            setTimeout(cleanupAudioStream, 1000);
+            return;
+          }
+          
+          try {
+            const data = JSON.parse(event.data);
+            if (data.chunk) {
+              textToSpeak += data.chunk;
+              
+              // Send text for TTS when we have enough to speak
+              // This prevents many tiny audio chunks and makes speech more natural
+              if (textToSpeak.length >= 50 || textToSpeak.includes('.') || textToSpeak.includes('!') || textToSpeak.includes('?')) {
+                fetch('/api/tts/stream', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    text: textToSpeak,
+                    // Add voice options if needed
+                  }),
+                }).catch(error => {
+                  console.error('Error sending text chunk for TTS:', error);
+                });
+                
+                textToSpeak = '';
+              }
+            }
+          } catch (error) {
+            console.error('Error processing text for audio stream:', error);
+          }
+        };
+        
         return;
       }
 
@@ -210,76 +495,68 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       apiMessages.push({ role: 'user', content });
 
       // Create a placeholder message for the assistant's response with isGenerating flag
-      const placeholderMessageId = addMessage('', 'assistant');
+      const placeholderMessage = addMessage('', 'assistant');
+      
+      // Skip if unable to create placeholder message
+      if (!placeholderMessage) {
+        console.error('Failed to create placeholder message');
+        return;
+      }
+
+      const placeholderMessageId = placeholderMessage.id;
       
       // Update the placeholder message to mark it as generating
-      if (placeholderMessageId) {
-        setChats(prevChats => {
-          return prevChats.map(chat => {
-            if (chat.id === currentChatId) {
-              return {
-                ...chat,
-                messages: chat.messages.map(msg => 
-                  msg.id === placeholderMessageId.id 
-                    ? { ...msg, isGenerating: true } 
-                    : msg
-                )
-              };
-            }
-            return chat;
-          });
+      setChats(prevChats => {
+        return prevChats.map(chat => {
+          if (chat.id === currentChatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map(msg => 
+                msg.id === placeholderMessageId
+                  ? { ...msg, isGenerating: true } 
+                  : msg
+              )
+            };
+          }
+          return chat;
         });
-      }
-
-      // Call the API
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messages: apiMessages }),
       });
+      
+      // Set isTyping to false once we've created a message with isGenerating=true
+      // This avoids having both indicators active at the same time
+      setIsTyping(false);
 
-      if (!response.ok) {
-        throw new Error('Failed to get response from API');
-      }
-
-      const data = await response.json();
-      const assistantResponse = data.response.content;
-
-      // Update the placeholder with the real content, keeping isGenerating true
-      if (placeholderMessageId) {
-        setChats(prevChats => {
-          // Add debug log for setting isGenerating
-          console.log('Setting message content with isGenerating=true');
-          return prevChats.map(chat => {
-            if (chat.id === currentChatId) {
-              return {
-                ...chat,
-                messages: chat.messages.map(msg => 
-                  msg.id === placeholderMessageId.id 
-                    ? { ...msg, content: assistantResponse, isGenerating: true } 
-                    : msg
-                ),
-                updatedAt: Date.now()
-              };
-            }
-            return chat;
-          });
+      // Use streaming by default
+      const eventSource = new EventSource(`/api/chat/stream?t=${Date.now()}`);
+      
+      // Setup event handlers for SSE
+      eventSource.onopen = () => {
+        console.log('SSE connection opened');
+        // Send the initial message once the connection is established
+        fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: apiMessages }),
+        }).catch(error => {
+          console.error('Error sending initial SSE message:', error);
+          eventSource.close();
         });
-        
-        // Simulate the message being finished generating after a brief delay
-        // This gives time for the typewriter effect to be visible
-        setTimeout(() => {
+      };
+      
+      let responseText = '';
+      
+      eventSource.onmessage = (event) => {
+        if (event.data === '[DONE]') {
+          eventSource.close();
+          // Mark the message as complete
           setChats(prevChats => {
-            // Add debug log for when isGenerating is set to false
-            console.log('Finished generating: setting isGenerating=false');
+            console.log('Finished streaming: setting isGenerating=false');
             return prevChats.map(chat => {
               if (chat.id === currentChatId) {
                 return {
                   ...chat,
                   messages: chat.messages.map(msg => 
-                    msg.id === placeholderMessageId.id 
+                    msg.id === placeholderMessageId
                       ? { ...msg, isGenerating: false } 
                       : msg
                   )
@@ -288,8 +565,174 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               return chat;
             });
           });
-        }, Math.min(3000, assistantResponse.length * 15)); // Cap at 3 seconds or proportional to length
-      }
+          
+          // Emit custom event when generation has finished
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('floyd-message-completed', {
+              detail: { messageId: placeholderMessageId }
+            }));
+          }
+          return;
+        }
+        
+        try {
+          const data = JSON.parse(event.data);
+          if (data.error) {
+            console.error('SSE error:', data.error);
+            eventSource.close();
+            return;
+          }
+          
+          if (data.chunk) {
+            responseText += data.chunk;
+            // Update message with the latest chunk
+            setChats(prevChats => {
+              return prevChats.map(chat => {
+                if (chat.id === currentChatId) {
+                  return {
+                    ...chat,
+                    messages: chat.messages.map(msg => 
+                      msg.id === placeholderMessageId
+                        ? { ...msg, content: responseText, isGenerating: true } 
+                        : msg
+                    ),
+                    updatedAt: Date.now()
+                  };
+                }
+                return chat;
+              });
+            });
+            
+            // Emit event for scrolling
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('floyd-message-updated', {
+                detail: { messageId: placeholderMessageId }
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing SSE data:', error, event.data);
+        }
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error);
+        eventSource.close();
+        // Mark message as complete in case of error
+        setChats(prevChats => {
+          return prevChats.map(chat => {
+            if (chat.id === currentChatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map(msg => 
+                  msg.id === placeholderMessageId
+                    ? { ...msg, isGenerating: false } 
+                    : msg
+                )
+              };
+            }
+            return chat;
+          });
+        });
+      };
+
+      // Add audio streaming by default
+      setIsStreamingAudio(true);
+      setAudioQueue([]); // Clear any existing audio queue
+      
+      // Set up audio event listener
+      const audioEventListener = (event: MessageEvent) => {
+        if (event.data === '[DONE]') {
+          setIsStreamingAudio(false);
+          return;
+        }
+        
+        try {
+          const data = JSON.parse(event.data);
+          if (data.audio) {
+            // Add audio chunk to queue
+            setAudioQueue(prev => [...prev, data.audio]);
+          }
+        } catch (error) {
+          console.error('Error parsing audio event data:', error);
+        }
+      };
+      
+      // Create a separate EventSource for audio streaming
+      const audioEventSource = new EventSource(`/api/tts/stream?t=${Date.now()}`);
+      audioEventSource.addEventListener('message', audioEventListener);
+      
+      // Clean up function
+      const cleanupAudioStream = () => {
+        audioEventSource.removeEventListener('message', audioEventListener);
+        audioEventSource.close();
+        setIsStreamingAudio(false);
+      };
+      
+      // Set up error handler
+      audioEventSource.onerror = () => {
+        console.error('Audio stream error');
+        cleanupAudioStream();
+      };
+      
+      // Send the streamed text to the audio API as it's generated
+      let textToSpeak = '';
+      
+      const originalTextListener = eventSource.onmessage;
+      eventSource.onmessage = (event) => {
+        // Call the original listener first
+        if (originalTextListener) {
+          originalTextListener.call(eventSource, event);
+        }
+        
+        // Process for audio streaming
+        if (event.data === '[DONE]') {
+          // Send any remaining text for speech
+          if (textToSpeak.trim()) {
+            fetch('/api/tts/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                text: textToSpeak,
+                // Add voice options if needed
+              }),
+            }).catch(error => {
+              console.error('Error sending final text chunk for TTS:', error);
+            });
+            textToSpeak = '';
+          }
+          
+          // Clean up audio stream after a delay to allow final chunks to process
+          setTimeout(cleanupAudioStream, 1000);
+          return;
+        }
+        
+        try {
+          const data = JSON.parse(event.data);
+          if (data.chunk) {
+            textToSpeak += data.chunk;
+            
+            // Send text for TTS when we have enough to speak
+            // This prevents many tiny audio chunks and makes speech more natural
+            if (textToSpeak.length >= 50 || textToSpeak.includes('.') || textToSpeak.includes('!') || textToSpeak.includes('?')) {
+              fetch('/api/tts/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  text: textToSpeak,
+                  // Add voice options if needed
+                }),
+              }).catch(error => {
+                console.error('Error sending text chunk for TTS:', error);
+              });
+              
+              textToSpeak = '';
+            }
+          }
+        } catch (error) {
+          console.error('Error processing text for audio stream:', error);
+        }
+      };
     } catch (error) {
       console.error('Error sending message:', error);
       addMessage('Sorry, I encountered an error while processing your request.', 'assistant');
