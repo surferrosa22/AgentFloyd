@@ -19,8 +19,6 @@ import {
     Command,
     PlusCircle,
     ChevronDown,
-    Mic,
-    MicOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as React from "react"
@@ -167,55 +165,6 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 )
 Textarea.displayName = "Textarea"
 
-// Define SpeechRecognition types for TypeScript
-interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-    resultIndex: number;
-    interpretation: string;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-    error: string;
-    message: string;
-}
-
-interface SpeechRecognitionResult {
-    isFinal: boolean;
-    [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionResultList {
-    length: number;
-    item(index: number): SpeechRecognitionResult;
-    [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionAlternative {
-    transcript: string;
-    confidence: number;
-}
-
-interface SpeechRecognition extends EventTarget {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    maxAlternatives: number;
-    start(): void;
-    stop(): void;
-    abort(): void;
-    onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null;
-    onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
-    onend: ((this: SpeechRecognition, ev: Event) => void) | null;
-}
-
-// Add window types for SpeechRecognition
-declare global {
-    interface Window {
-        SpeechRecognition?: new () => SpeechRecognition;
-        webkitSpeechRecognition?: new () => SpeechRecognition;
-    }
-}
-
 export function AnimatedAIChat() {
     const [value, setValue] = useState("");
     const [attachments, setAttachments] = useState<string[]>([]);
@@ -235,21 +184,6 @@ export function AnimatedAIChat() {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
     const [scrollPosition, setScrollPosition] = useState(0);
-    
-    // Voice recognition states
-    const [isListening, setIsListening] = useState(false);
-    const [speechSupported, setSpeechSupported] = useState(false);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
-    const [interimTranscript, setInterimTranscript] = useState("");
-    const [finalTranscript, setFinalTranscript] = useState("");
-    
-    // Voice chat conversation states
-    const [voiceChatHistory, setVoiceChatHistory] = useState<{role: 'user' | 'assistant', content: string}[]>([]);
-    const [isVoiceResponseLoading, setIsVoiceResponseLoading] = useState(false);
-    const [currentVoiceResponse, setCurrentVoiceResponse] = useState("");
-    
-    // Auto-submit speech after a pause
-    const autoSubmitTimerRef = useRef<NodeJS.Timeout | null>(null);
     
     // Use theme context
     const { resolvedTheme } = useTheme();
@@ -705,388 +639,6 @@ export function AnimatedAIChat() {
         ));
     };
 
-    // Auto-submit speech after a pause
-    const startAutoSubmitTimer = useCallback((text: string) => {
-        // Clear any existing timer
-        if (autoSubmitTimerRef.current) {
-            clearTimeout(autoSubmitTimerRef.current);
-        }
-        
-        // Set a new timer to submit after 1.5 seconds of silence
-        autoSubmitTimerRef.current = setTimeout(() => {
-            if (finalTranscript && !isVoiceResponseLoading) {
-                handleVoiceInput(finalTranscript);
-                setFinalTranscript("");
-            }
-        }, 1500);
-    }, [finalTranscript, isVoiceResponseLoading]);
-
-    // Extract speech processing to a separate function
-    const processSpeechResult = useCallback((final: string) => {
-        // Process final speech and get immediate response
-        const completeTranscript = `${finalTranscript} ${final}`.trim();
-        setFinalTranscript(completeTranscript);
-        setValue(completeTranscript);
-        
-        // Immediately process speech when a sentence is completed
-        if (final.endsWith('.') || final.endsWith('?') || final.endsWith('!') || 
-            final.length > 15) {
-            if (!isVoiceResponseLoading) {
-                handleVoiceInput(completeTranscript);
-            }
-        }
-    }, [finalTranscript, isVoiceResponseLoading]);
-
-    // Handle voice message sending and response within the overlay
-    const handleVoiceInput = async (userMessage: string) => {
-        if (!userMessage.trim()) return;
-        
-        // Add user message to voice chat history
-        setVoiceChatHistory(prev => [...prev, {
-            role: 'user',
-            content: userMessage.trim()
-        }]);
-        
-        // Clear transcripts
-        setInterimTranscript("");
-        setFinalTranscript("");
-        
-        // Show loading state
-        setIsVoiceResponseLoading(true);
-        setCurrentVoiceResponse("");
-        
-        // Temporarily pause listening while AI is responding
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-        
-        try {
-            // Format messages for the API including voice chat history
-            const apiMessages = [
-                ...voiceChatHistory.map(msg => ({
-                    role: msg.role,
-                    content: msg.content,
-                })),
-                { role: 'user' as const, content: userMessage.trim() }
-            ];
-            
-            // Setup SSE for real-time streaming
-            const eventSource = new EventSource(`/api/chat/stream?t=${Date.now()}`);
-            
-            // Setup event handlers for SSE
-            eventSource.onopen = () => {
-                // Send the initial message once the connection is established
-                fetch('/api/chat/stream', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: apiMessages }),
-                }).catch(error => {
-                    console.error('Error sending voice message:', error);
-                    eventSource.close();
-                });
-            };
-            
-            let responseText = '';
-            
-            eventSource.onmessage = (event) => {
-                if (event.data === '[DONE]') {
-                    eventSource.close();
-                    setIsVoiceResponseLoading(false);
-                    
-                    // Add the completed response to voice chat history
-                    setVoiceChatHistory(prev => [...prev, {
-                        role: 'assistant',
-                        content: responseText
-                    }]);
-                    
-                    // Limit history to last 6 messages to keep the context manageable
-                    setVoiceChatHistory(prev => {
-                        if (prev.length > 6) {
-                            return prev.slice(prev.length - 6);
-                        }
-                        return prev;
-                    });
-                    
-                    // Resume listening immediately after AI response is complete
-                    if (isListening && recognitionRef.current) {
-                        setTimeout(() => {
-                            recognitionRef.current?.start();
-                        }, 200); // Start listening sooner for better experience
-                    }
-                    return;
-                }
-                
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.error) {
-                        console.error('SSE error:', data.error);
-                        eventSource.close();
-                        setIsVoiceResponseLoading(false);
-                        
-                        // Resume listening on error
-                        if (isListening && recognitionRef.current) {
-                            setTimeout(() => {
-                                recognitionRef.current?.start();
-                            }, 500);
-                        }
-                        return;
-                    }
-                    
-                    if (data.chunk) {
-                        responseText += data.chunk;
-                        setCurrentVoiceResponse(responseText);
-                    }
-                } catch (error) {
-                    console.error('Error parsing SSE data:', error, event.data);
-                }
-            };
-            
-            eventSource.onerror = (errorEvent) => {
-                console.error('SSE error handled safely');
-                // Prevent error from bubbling up to console
-                errorEvent.preventDefault?.();
-                
-                // Make sure to close the connection
-                eventSource.close();
-                setIsVoiceResponseLoading(false);
-                
-                // Resume listening on error
-                if (isListening && recognitionRef.current) {
-                    setTimeout(() => {
-                        recognitionRef.current?.start();
-                    }, 500);
-                }
-            };
-            
-            // Create a separate EventSource for audio streaming
-            const audioEventSource = new EventSource(`/api/tts/stream?t=${Date.now()}`);
-            let audioChunksProcessed = 0;
-            
-            // Clean up function
-            const cleanupAudioStream = () => {
-                audioEventSource.removeEventListener('message', audioEventListener);
-                audioEventSource.close();
-            };
-            
-            // Set up error handler
-            audioEventSource.onerror = () => {
-                console.error('Audio stream error handled safely');
-                cleanupAudioStream();
-            };
-            
-            // Audio event listener - process voice in real-time
-            const audioEventListener = (event: MessageEvent) => {
-                if (event.data === '[DONE]') {
-                    return;
-                }
-                
-                try {
-                    const data = JSON.parse(event.data);
-                    audioChunksProcessed++;
-                    // Audio is automatically handled by the chat-context.tsx
-                } catch (error) {
-                    console.error('Error parsing audio event data:', error);
-                }
-            };
-            
-            audioEventSource.addEventListener('message', audioEventListener);
-            
-            // Send text for TTS as it's generated
-            let textToSpeak = '';
-            const sentenceBreaks = /[.!?]/;
-            
-            const originalTextListener = eventSource.onmessage;
-            eventSource.onmessage = (event) => {
-                // Call the original listener first
-                if (originalTextListener) {
-                    originalTextListener.call(eventSource, event);
-                }
-                
-                // Process for audio streaming
-                if (event.data === '[DONE]') {
-                    // Send any remaining text for speech
-                    if (textToSpeak.trim()) {
-                        fetch('/api/tts/stream', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                text: textToSpeak,
-                                voiceId: 'dPah2VEoifKnZT37774q',
-                                options: { 
-                                    model: 'elevenmultilingual_v2'
-                                }
-                            }),
-                        }).catch(error => {
-                            console.error('Error sending final text chunk for TTS:', error);
-                        });
-                        textToSpeak = '';
-                    }
-                    
-                    // Clean up audio stream after a delay to allow final chunks to process
-                    setTimeout(cleanupAudioStream, 1000);
-                    return;
-                }
-                
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.chunk) {
-                        textToSpeak += data.chunk;
-                        
-                        // Send text for TTS more aggressively for real-time conversation
-                        // After 30 characters or at sentence breaks
-                        if (textToSpeak.length >= 30 || 
-                            sentenceBreaks.test(textToSpeak) ||
-                            textToSpeak.includes(',')) {
-                            
-                            fetch('/api/tts/stream', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    text: textToSpeak,
-                                    voiceId: 'dPah2VEoifKnZT37774q',
-                                    options: { 
-                                        model: 'elevenmultilingual_v2'
-                                    }
-                                }),
-                            }).catch(error => {
-                                console.error('Error sending text chunk for TTS:', error);
-                            });
-                            
-                            textToSpeak = '';
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error processing text for audio stream:', error);
-                }
-            };
-            
-        } catch (error) {
-            console.error('Error in voice chat:', error);
-            setIsVoiceResponseLoading(false);
-            
-            // Resume listening on error
-            if (isListening && recognitionRef.current) {
-                setTimeout(() => {
-                    recognitionRef.current?.start();
-                }, 500);
-            }
-        }
-    };
-
-    // Check if speech recognition is supported
-    useEffect(() => {
-        // Check for SpeechRecognition support
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            setSpeechSupported(true);
-            // Initialize speech recognition
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = 'en-US';
-            
-            // Set up event handlers
-            recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-                let interim = '';
-                let final = '';
-                
-                for (let i = 0; i < event.results.length; i++) {
-                    const result = event.results[i];
-                    if (result.isFinal) {
-                        final += result[0].transcript;
-                    } else {
-                        interim += result[0].transcript;
-                    }
-                }
-                
-                setInterimTranscript(interim);
-                if (final) {
-                    processSpeechResult(final);
-                }
-            };
-            
-            recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-                // Handle specific speech recognition errors
-                if (event.error === 'not-allowed') {
-                    console.error('Microphone access denied:', event.error);
-                    alert('Mikrofonunuza erişim izni verin. Lütfen tarayıcı ayarlarından mikrofon erişimini etkinleştirin.');
-                } else if (event.error === 'aborted') {
-                    console.log('Speech recognition was aborted - this is normal during voice chat flow');
-                    // Aborted is often expected when we manually stop recognition during AI response
-                } else {
-                    console.error('Speech recognition error:', event.error, event.message);
-                }
-                
-                // Always set listening to false on error
-                setIsListening(false);
-                
-                // Prevent the error from showing in console
-                event.preventDefault?.();
-            };
-            
-            recognitionRef.current.onend = () => {
-                // Only reset if we're still supposed to be listening
-                // This prevents the recognition from stopping unexpectedly
-                if (isListening && recognitionRef.current && !isVoiceResponseLoading) {
-                    recognitionRef.current.start();
-                }
-            };
-        }
-    }, [isListening, processSpeechResult]);
-
-    // Handle stopping speech recognition
-    const handleSpeechStop = useCallback(() => {
-        // If we have a final transcript, process it before stopping
-        if (finalTranscript && !isVoiceResponseLoading) {
-            handleVoiceInput(finalTranscript);
-            setFinalTranscript("");
-        }
-    }, [finalTranscript, isVoiceResponseLoading]);
-
-    // Handle starting and stopping of speech recognition
-    const toggleVoiceInput = useCallback(() => {
-        if (!speechSupported || !recognitionRef.current) {
-            alert('Speech recognition is not supported in your browser.');
-            return;
-        }
-        
-        if (isListening) {
-            // Stop listening
-            recognitionRef.current.stop();
-            setIsListening(false);
-            setInterimTranscript("");
-            
-            // Focus back on the input after stopping
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-            }
-            
-            // Handle any pending transcript
-            handleSpeechStop();
-            
-            // Dispatch event to show navbar again
-            window.dispatchEvent(new CustomEvent('floyd-voice-mode', { detail: { active: false } }));
-        } else {
-            // Start listening
-            try {
-                recognitionRef.current.start();
-                setIsListening(true);
-                setFinalTranscript("");
-                setVoiceChatHistory([]);
-                setCurrentVoiceResponse("");
-                
-                // Clear the input field when starting voice input
-                setValue("");
-                
-                // Dispatch event to hide navbar
-                window.dispatchEvent(new CustomEvent('floyd-voice-mode', { detail: { active: true } }));
-            } catch (err) {
-                console.error('Failed to start speech recognition:', err);
-                alert('Failed to start speech recognition. Please try again.');
-            }
-        }
-    }, [isListening, speechSupported, textareaRef, handleSpeechStop]);
-
     return (
         <div className={cn(
             "h-screen flex flex-col w-full items-center justify-center bg-transparent p-6 relative overflow-hidden",
@@ -1144,217 +696,7 @@ export function AnimatedAIChat() {
                     0% { opacity: 0.2; }
                     100% { opacity: 0.7; }
                 }
-                
-                @keyframes pulse-ring {
-                  0% { transform: scale(0.95); opacity: 0.7; }
-                  50% { transform: scale(1.05); opacity: 0.9; }
-                  100% { transform: scale(0.95); opacity: 0.7; }
-                }
-                
-                @keyframes equalizer-bar {
-                  0% { height: 15%; }
-                  50% { height: 70%; }
-                  100% { height: 15%; }
-                }
             `}</style>
-
-            {/* Voice Chat Overlay */}
-            <AnimatePresence>
-                {isListening && (
-                    <motion.div 
-                        className={cn(
-                            "fixed inset-0 z-[100] flex flex-col items-center justify-center",
-                            isDark ? "bg-black/95" : "bg-white/95"
-                        )}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        {/* Close button */}
-                        <motion.button
-                            onClick={toggleVoiceInput}
-                            className={cn(
-                                "absolute top-8 right-8 p-3 rounded-full",
-                                isDark ? "bg-white/10 hover:bg-white/20" : "bg-black/10 hover:bg-black/20"
-                            )}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            <XIcon className="w-6 h-6" />
-                        </motion.button>
-                        
-                        {/* Main content area with voice visualizations and transcript */}
-                        <div className="max-w-2xl w-full mx-auto flex flex-col items-center justify-center h-full">
-                            <div className="flex-1 flex flex-col items-center justify-center">
-                                {/* Visualization Container */}
-                                <div className="relative mb-12">
-                                    {/* User listening waveform */}
-                                    {!isVoiceResponseLoading && (
-                                        <div className="relative">
-                                            {/* Sound wave circle */}
-                                            <div 
-                                                className={cn(
-                                                    "absolute -inset-12 rounded-full opacity-10",
-                                                    isDark ? "bg-green-500" : "bg-green-500"
-                                                )}
-                                                style={{ 
-                                                    animation: 'pulse-ring 2s infinite'
-                                                }}
-                                            />
-                                            
-                                            {/* Primary circle */}
-                                            <motion.div 
-                                                className={cn(
-                                                    "relative w-24 h-24 rounded-full flex items-center justify-center",
-                                                    isDark ? "bg-green-700" : "bg-green-500"
-                                                )}
-                                                animate={{ 
-                                                    scale: interimTranscript ? [1, 1.05, 1] : 1,
-                                                }}
-                                                transition={{ 
-                                                    duration: 1,
-                                                    repeat: interimTranscript ? Number.POSITIVE_INFINITY : 0,
-                                                    repeatType: 'loop'
-                                                }}
-                                            >
-                                                <Mic className="w-10 h-10 text-white" />
-                                            </motion.div>
-                                            
-                                            {/* Audio visualizer - only when detecting speech */}
-                                            {interimTranscript && (
-                                                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                                                    <div className="flex items-end gap-[2px] h-28 w-28 rotate-45">
-                                                        {Array.from({ length: 16 }, (_, i) => i).map((i) => (
-                                                            <motion.div
-                                                                key={`eq-bar-${i}`}
-                                                                className={cn(
-                                                                    "w-[2px] rounded-t-full bg-green-400",
-                                                                    isDark ? "bg-opacity-60" : "bg-opacity-80"
-                                                                )}
-                                                                style={{
-                                                                    height: '10%',
-                                                                    animation: `equalizer-bar ${0.2 + (i % 5) * 0.15}s infinite ${(i % 7) * 0.1}s`
-                                                                }}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    
-                                    {/* AI responding animation */}
-                                    {isVoiceResponseLoading && (
-                                        <div className="relative">
-                                            {/* Sound wave circle */}
-                                            <div 
-                                                className={cn(
-                                                    "absolute -inset-12 rounded-full opacity-10",
-                                                    isDark ? "bg-violet-500" : "bg-violet-500"
-                                                )}
-                                                style={{ 
-                                                    animation: 'pulse-ring 2s infinite'
-                                                }}
-                                            />
-                                            
-                                            {/* Primary circle */}
-                                            <motion.div 
-                                                className={cn(
-                                                    "relative w-24 h-24 rounded-full flex items-center justify-center",
-                                                    isDark ? "bg-violet-700" : "bg-violet-500"
-                                                )}
-                                                animate={{ 
-                                                    scale: [1, 1.05, 1],
-                                                }}
-                                                transition={{ 
-                                                    duration: 2,
-                                                    repeat: Number.POSITIVE_INFINITY,
-                                                    repeatType: 'loop'
-                                                }}
-                                            >
-                                                <motion.div
-                                                    className="absolute inset-0 flex items-center justify-center"
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ 
-                                                        duration: 8, 
-                                                        repeat: Number.POSITIVE_INFINITY,
-                                                        ease: "linear"
-                                                    }}
-                                                >
-                                                    <div className="h-full w-full flex items-center justify-center">
-                                                        <div className="w-24 h-24 rounded-full border border-white border-opacity-20" />
-                                                    </div>
-                                                </motion.div>
-                                                <Sparkles className="w-10 h-10 text-white" />
-                                            </motion.div>
-                                            
-                                            {/* Audio response visualizer */}
-                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                                                <div className="flex items-end gap-[2px] h-28 w-28 rotate-45">
-                                                    {Array.from({ length: 16 }, (_, i) => i).map((i) => (
-                                                        <motion.div
-                                                            key={`eq-bar-ai-${i}`}
-                                                            className={cn(
-                                                                "w-[2px] rounded-t-full bg-violet-400",
-                                                                isDark ? "bg-opacity-60" : "bg-opacity-80"
-                                                            )}
-                                                            style={{
-                                                                height: '10%',
-                                                                animation: `equalizer-bar ${0.2 + (i % 5) * 0.15}s infinite ${(i % 7) * 0.1}s`
-                                                            }}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {/* Current transcript or response */}
-                                <motion.div 
-                                    className={cn(
-                                        "max-w-md text-center px-6 py-4 rounded-2xl",
-                                        isDark 
-                                            ? isVoiceResponseLoading 
-                                                ? "bg-violet-950/30 text-white/90" 
-                                                : interimTranscript || finalTranscript
-                                                    ? "bg-green-950/30 text-white/90"
-                                                    : "bg-transparent text-white/60"
-                                            : isVoiceResponseLoading 
-                                                ? "bg-violet-50 text-violet-900" 
-                                                : interimTranscript || finalTranscript
-                                                    ? "bg-green-50 text-green-900"
-                                                    : "bg-transparent text-black/60"
-                                    )}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    {isVoiceResponseLoading ? (
-                                        <p className="text-lg font-light">
-                                            {currentVoiceResponse || "..."}
-                                        </p>
-                                    ) : finalTranscript || interimTranscript ? (
-                                        <div className="space-y-2">
-                                            {finalTranscript && <p className="text-lg font-light">{finalTranscript}</p>}
-                                            {interimTranscript && <p className="text-lg font-light opacity-80">{interimTranscript}</p>}
-                                        </div>
-                                    ) : (
-                                        <p className="text-lg font-light opacity-80">Start speaking...</p>
-                                    )}
-
-                                    {/* Info message about voice conversation mode */}
-                                    <div className="mt-4 text-xs opacity-60">
-                                        <p>Real-time voice conversation mode</p>
-                                        <p className="mt-1">Speak naturally and Floyd will respond with voice</p>
-                                    </div>
-                                </motion.div>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <div className="w-full max-w-2xl mx-auto relative flex flex-col h-[calc(100vh-40px)] overflow-hidden">
                 <motion.div 
@@ -1377,7 +719,10 @@ export function AnimatedAIChat() {
                     ) : (
                         <div className="space-y-0.5 pt-4">
                             {messages.map((message) => (
-                                <ChatMessageComponent key={message.id} message={message} />
+                                <ChatMessageComponent 
+                                    key={message.id || `${message.role}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`} 
+                                    message={message} 
+                                />
                             ))}
                             {/* Add a smaller spacer at the bottom */}
                             <div className="h-6" />
@@ -1453,27 +798,6 @@ export function AnimatedAIChat() {
                             zIndex: 60
                         }}
                     >
-                        {/* Show interim transcript as a floating message if we're listening */}
-                        <AnimatePresence>
-                            {isListening && interimTranscript && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
-                                    className={cn(
-                                        "absolute left-14 bottom-full mb-2 py-2 px-3 rounded-lg shadow-md z-20",
-                                        "text-sm max-w-[calc(100%-80px)] truncate",
-                                        isDark 
-                                            ? "bg-red-900/80 text-white/90 border border-red-800/50"
-                                            : "bg-red-50 text-red-900 border border-red-200"
-                                    )}
-                                >
-                                    <span className="opacity-75">{interimTranscript}</span>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        
-                        {/* Command palette */}
                         <AnimatePresence>
                             {showCommandPalette && (
                                 <motion.div 
@@ -1504,24 +828,12 @@ export function AnimatedAIChat() {
                                 onSend={handleSendMessage}
                                 onEnhance={handleEnhancePrompt}
                                 onAttachFile={handleAttachFile}
-                                onShowCommands={() => {
-                                    setShowCommandPalette(prev => !prev);
-                                }}
-                                onVoiceInput={toggleVoiceInput}
+                                onShowCommands={() => setShowCommandPalette(true)}
                                 isTyping={isTyping}
                                 showCommands={showCommandPalette}
-                                isListening={isListening}
                                 inputRef={textareaRef}
                                 onKeyDown={handleKeyDown}
-                                onFocus={handleInputFocus}
-                                onBlur={() => setInputFocused(false)}
-                                placeholder={isListening ? "Listening..." : "Ask Floyd a question..."}
-                                className={cn(
-                                    "scrollable-input",
-                                    isDark 
-                                        ? "input-dark custom-scrollbar-dark" 
-                                        : "input-light custom-scrollbar-light"
-                                )}
+                                placeholder="Ask Floyd a question..."
                             />
                         </ChatInputWrapper>
 
@@ -1535,7 +847,7 @@ export function AnimatedAIChat() {
                                 >
                                     {attachments.map((file, index) => (
                                         <motion.div
-                                            key={`attachment-${file}-${index}-${Date.now()}`}
+                                            key={`attachment-${file}-${index}`}
                                             className={cn(
                                                 "flex items-center gap-2 text-xs py-1.5 px-3 rounded-lg",
                                                 isDark
@@ -1730,14 +1042,6 @@ const customScrollbarStyles = `
 
 .input-light {
   scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
-}
-
-.animation-delay-200 {
-  animation-delay: 200ms;
-}
-
-.animation-delay-400 {
-  animation-delay: 400ms;
 }
 `;
 

@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
-  const [isVoiceModeActive, setIsVoiceModeActive] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -23,19 +22,6 @@ export default function ChatPage() {
     if (savedState !== null) {
       setIsSidebarVisible(savedState === 'true');
     }
-  }, []);
-
-  // Add event listener for voice mode toggle
-  useEffect(() => {
-    const handleVoiceMode = (event: CustomEvent) => {
-      setIsVoiceModeActive(event.detail.active);
-    };
-
-    window.addEventListener('floyd-voice-mode', handleVoiceMode as EventListener);
-    
-    return () => {
-      window.removeEventListener('floyd-voice-mode', handleVoiceMode as EventListener);
-    };
   }, []);
 
   // Add a useEffect to scroll to the bottom when the page loads
@@ -64,19 +50,17 @@ export default function ChatPage() {
       "min-h-screen flex flex-col",
       isDark ? "bg-black text-white" : "bg-white text-black"
     )}>
-      {/* Navigation Bar - Hidden in voice mode */}
-      {!isVoiceModeActive && (
-        <div className="hidden md:block">
-          <NavBar
-            items={[
-              { name: 'Home', url: '/ai-agent', icon: Home },
-              { name: 'Chat', url: '/chat', icon: MessageSquare },
-              { name: 'Settings', url: '/settings', icon: Settings },
-            ]}
-            className="top-0 left-1/2 -translate-x-1/2 z-50 pt-6"
-          />
-        </div>
-      )}
+      {/* Navigation Bar */}
+      <div className="hidden md:block">
+        <NavBar
+          items={[
+            { name: 'Home', url: '/ai-agent', icon: Home },
+            { name: 'Chat', url: '/chat', icon: MessageSquare },
+            { name: 'Settings', url: '/settings', icon: Settings },
+          ]}
+          className="top-0 left-1/2 -translate-x-1/2 z-50 pt-6"
+        />
+      </div>
 
       <div className="relative flex flex-1 w-full">
         <StarsBackground 
@@ -89,30 +73,28 @@ export default function ChatPage() {
         />
         
         {/* Sidebar */}
-        {isSidebarVisible && !isVoiceModeActive && (
+        {isSidebarVisible && (
           <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80 sticky top-0 h-screen overflow-hidden">
             <ChatSidebar />
           </div>
         )}
         
         {/* Custom Animated Toggle Button */}
-        {!isVoiceModeActive && (
-          <div className={`fixed left-0 top-4 z-[100] hidden sm:block transition-all duration-300 ${
-            isSidebarVisible ? 'sm:ml-64 md:ml-72 lg:ml-80' : 'ml-4'
-          }`}>
-            <div 
-              className={cn(
-                "rounded-md shadow-md backdrop-blur-sm cursor-pointer",
-                isDark ? "bg-background/80" : "bg-gray-100"
-              )}
-            >
-              <AnimatedMenuButton 
-                externalOpen={isSidebarVisible} 
-                onToggle={toggleSidebar} 
-              />
-            </div>
+        <div className={`fixed left-0 top-4 z-[100] hidden sm:block transition-all duration-300 ${
+          isSidebarVisible ? 'sm:ml-64 md:ml-72 lg:ml-80' : 'ml-4'
+        }`}>
+          <div 
+            className={cn(
+              "rounded-md shadow-md backdrop-blur-sm cursor-pointer",
+              isDark ? "bg-background/80" : "bg-gray-100"
+            )}
+          >
+            <AnimatedMenuButton 
+              externalOpen={isSidebarVisible} 
+              onToggle={toggleSidebar} 
+            />
           </div>
-        )}
+        </div>
         
         {/* Main Content - Fix the theme classes to be more stable */}
         <div 

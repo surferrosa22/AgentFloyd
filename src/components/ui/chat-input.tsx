@@ -1,10 +1,11 @@
 'use client';
 
-import type React from "react";
+import { useEffect, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme-provider";
-import { SendIcon, Paperclip, Command, Sparkles, LoaderIcon, Mic, MicOff } from "lucide-react";
+import { SendIcon, Paperclip, Sparkles, LoaderIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { useChat } from '@/lib/chat-context';
 
 interface ChatInputProps {
   value: string;
@@ -13,16 +14,11 @@ interface ChatInputProps {
   onEnhance?: () => void;
   onAttachFile?: () => void;
   onShowCommands?: () => void;
-  onVoiceInput?: () => void;
   isTyping?: boolean;
   showCommands?: boolean;
-  isListening?: boolean;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onFocus?: () => void;
-  onBlur?: () => void;
   placeholder?: string;
-  className?: string;
 }
 
 export function ChatInput({
@@ -32,19 +28,15 @@ export function ChatInput({
   onEnhance,
   onAttachFile,
   onShowCommands,
-  onVoiceInput,
   isTyping = false,
   showCommands = false,
-  isListening = false,
   inputRef,
   onKeyDown,
-  placeholder = "Ask a question...",
-  className,
-  onFocus,
-  onBlur
+  placeholder = "Ask a question..."
 }: ChatInputProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { sendMessage: contextSendMessage } = useChat();
 
   return (
     <div className="w-full">
@@ -54,8 +46,6 @@ export function ChatInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
           placeholder={placeholder}
           className={cn(
             "w-full px-4 py-3",
@@ -65,17 +55,16 @@ export function ChatInput({
             "text-sm",
             "focus:outline-none",
             "min-h-[60px]",
-            isDark 
-              ? "text-white/90 placeholder:text-white/30" 
-              : "text-black/90 placeholder:text-black/40",
-            className
+            isDark
+              ? "text-white/90 placeholder:text-white/30"
+              : "text-black/90 placeholder:text-black/40"
           )}
           style={{
             overflow: "hidden",
           }}
         />
       </div>
-      
+
       <div className={cn(
         "p-4 border-t flex items-center justify-between gap-4",
         isDark ? "border-white/10" : "border-gray-200"
@@ -97,7 +86,7 @@ export function ChatInput({
             </motion.button>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {onEnhance && (
             <motion.button
@@ -105,16 +94,11 @@ export function ChatInput({
               onClick={onEnhance}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
-              disabled={!value.trim()}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer",
-                value.trim()
-                  ? isDark
-                    ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
-                    : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
-                  : isDark
-                    ? "bg-white/[0.03] text-white/30 cursor-not-allowed"
-                    : "bg-black/[0.03] text-black/30 cursor-not-allowed"
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                isDark 
+                  ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]" 
+                  : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
               )}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -124,50 +108,35 @@ export function ChatInput({
           
           <motion.button
             type="button"
-            onClick={onVoiceInput}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer",
-              isListening
-                ? isDark
-                  ? "bg-red-500/80 text-white hover:bg-red-500/90"
-                  : "bg-red-500/80 text-white hover:bg-red-500/90"
-                : isDark
-                  ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
-                  : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
-            )}
-          >
-            {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-            <span>{isListening ? "Stop" : "Voice"}</span>
-          </motion.button>
-          
-          <motion.button
-            type="button"
             onClick={onSend}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
-            disabled={isTyping || !value.trim()}
+            disabled={!value.trim() || isTyping}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer",
-              value.trim()
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              !value.trim() || isTyping
                 ? isDark
-                  ? "bg-white text-[#0A0A0B] shadow-lg shadow-white/10"
-                  : "bg-black text-white shadow-lg shadow-black/10"
+                  ? "bg-white/[0.02] text-white/30 cursor-not-allowed"
+                  : "bg-black/[0.02] text-black/30 cursor-not-allowed"
                 : isDark
-                  ? "bg-white/[0.05] text-white/40"
-                  : "bg-black/[0.05] text-black/40"
+                  ? "bg-gradient-to-r from-violet-600/80 to-purple-600/80 text-white/90 hover:from-violet-500/80 hover:to-purple-500/80"
+                  : "bg-gradient-to-r from-violet-600 to-purple-600 text-white/90 hover:from-violet-500 hover:to-purple-500"
             )}
           >
             {isTyping ? (
-              <LoaderIcon className="w-4 h-4 animate-[spin_2s_linear_infinite]" />
+              <>
+                <LoaderIcon className="w-3.5 h-3.5 animate-spin" />
+                <span>Thinking</span>
+              </>
             ) : (
-              <SendIcon className="w-4 h-4" />
+              <>
+                <SendIcon className="w-3.5 h-3.5" />
+                <span>Send</span>
+              </>
             )}
-            <span>Send</span>
           </motion.button>
         </div>
       </div>
     </div>
   );
-} 
+}
