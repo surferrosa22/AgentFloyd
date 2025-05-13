@@ -6,6 +6,13 @@ interface RealtimeEvent {
   [key: string]: unknown;
 }
 
+interface Tool {
+  name: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+  execute: (args: unknown) => Promise<unknown> | unknown;
+}
+
 interface UseRealtimeApiRTCProps {
   onMessage?: (message: RealtimeEvent) => void;
   onError?: (error: Error) => void;
@@ -14,6 +21,7 @@ interface UseRealtimeApiRTCProps {
   voice?: string;
   instructions?: string;
   history?: import('@/lib/utils').ChatMessage[];
+  tools?: Tool[];
 }
 
 interface RealtimeSession {
@@ -24,6 +32,18 @@ interface RealtimeSession {
   model: string;
 }
 
+interface SessionUpdatePayload {
+  type: 'session.update';
+  event_id: string;
+  session: {
+    modalities: string[];
+    input_audio_format: string;
+    output_audio_format: string;
+    voice: string;
+    tools?: unknown[];
+  };
+}
+
 export function useRealtimeApiRTC({
   onMessage,
   onError,
@@ -32,6 +52,7 @@ export function useRealtimeApiRTC({
   voice = 'echo',
   instructions = '',
   history = [],
+  tools = [],
 }: UseRealtimeApiRTCProps = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -364,7 +385,7 @@ export function useRealtimeApiRTC({
               // the data-channel.  We therefore send the minimal valid set
               // (modalities + input_audio_format) together with the desired
               // voice setting.
-              const sessionConfig = {
+              const sessionConfig: SessionUpdatePayload = {
                 type: 'session.update',
                 event_id: `event_${Date.now()}`,
                 session: {
@@ -374,6 +395,14 @@ export function useRealtimeApiRTC({
                   voice: voice
                 }
               };
+              if (tools.length > 0) {
+                sessionConfig.session.tools = tools.map(t => ({
+                  type: 'function',
+                  name: t.name,
+                  description: t.description,
+                  parameters: t.parameters
+                }));
+              }
               console.log('Session configuration to send:', sessionConfig);
               currentDataChannel.send(JSON.stringify(sessionConfig));
               console.log('Session configuration sent successfully.');
@@ -485,7 +514,10 @@ export function useRealtimeApiRTC({
         }
       };
       
-      dataChannel.onmessage = (event) => {
+      // ---------- handle incoming messages (including function calls) ----------
+      const functionCallBuffer: {name?: string; callId?: string; argsFragments: string[]} = { name: undefined, callId: undefined, argsFragments: [] };
+
+      dataChannel.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           console.log('Received message:', data);
@@ -494,7 +526,48 @@ export function useRealtimeApiRTC({
           if (data.type === 'error') {
             console.error('Received error from Realtime API:', data);
           } else {
-            onMessage?.(data);
+            // Function call handling
+            if (data.type === 'response.function_call') {
+              functionCallBuffer.name = data.name as string;
+              functionCallBuffer.callId = data.call_id as string | undefined;
+              functionCallBuffer.argsFragments = [];
+            } else if (data.type === 'response.function_call_arguments') {
+              if (typeof data.arguments === 'string') {
+                functionCallBuffer.argsFragments.push(data.arguments);
+              }
+            } else if (data.type === 'response.function_call_arguments.done') {
+              const fullArgsStr = functionCallBuffer.argsFragments.join('');
+              try {
+                const args = fullArgsStr ? JSON.parse(fullArgsStr) : {};
+                const tool = tools.find(t => t.name === functionCallBuffer.name);
+                if (tool) {
+                  console.log('Executing local tool', tool.name, args);
+                  const output = await tool.execute(args);
+                  const responsePacket = {
+                    type: 'conversation.item.create',
+                    event_id: `event_${Date.now()}`,
+                    item: {
+                      type: 'function_call_output',
+                      call_id: functionCallBuffer.callId || data.call_id || `call_${Date.now()}`,
+                      output
+                    }
+                  } as const;
+                  dataChannelRef.current?.send(JSON.stringify(responsePacket));
+
+                  // Trigger assistant continuation
+                  dataChannelRef.current?.send(JSON.stringify({ type: 'response.create' }));
+                } else {
+                  console.warn('Tool not found:', functionCallBuffer.name);
+                }
+              } catch (e) {
+                console.error('Error executing tool:', e);
+              }
+            }
+
+            // Forward non-tool events to UI
+            if (!data.type?.startsWith('response.function_call')) {
+              onMessage?.(data);
+            }
           }
         } catch (err) {
           console.error('Error parsing message:', err);
@@ -622,7 +695,7 @@ export function useRealtimeApiRTC({
       cleanup();
       throw error;
     }
-  }, [isConnected, isConnecting, model, voice, instructions, onMessage, onError, cleanup, history]);
+  }, [isConnected, isConnecting, model, voice, instructions, onMessage, onError, cleanup, history, tools]);
   
   // Check if the connection is really active (combining multiple states)
   const isConnectionActive = useCallback(() => {

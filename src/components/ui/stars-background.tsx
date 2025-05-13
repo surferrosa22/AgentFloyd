@@ -21,6 +21,12 @@ interface StarBackgroundProps {
   minTwinkleSpeed?: number;
   maxTwinkleSpeed?: number;
   className?: string;
+
+  /**
+   * If true (default) the star field slowly drifts to give a parallax feel.
+   * Set to false to keep the star positions fixed (they will still twinkle).
+   */
+  enableDrift?: boolean;
 }
 
 export const StarsBackground: React.FC<StarBackgroundProps> = ({
@@ -30,6 +36,7 @@ export const StarsBackground: React.FC<StarBackgroundProps> = ({
   minTwinkleSpeed = 0.5,
   maxTwinkleSpeed = 1,
   className,
+  enableDrift = true,
 }) => {
   const [stars, setStars] = useState<StarProps[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -76,7 +83,13 @@ export const StarsBackground: React.FC<StarBackgroundProps> = ({
     ]
   );
 
+  // Drift animation (parallax-like slow movement). Can be disabled via prop.
   useEffect(() => {
+    if (!enableDrift) {
+      // Ensure offset is reset when drift is disabled
+      setOffset({ x: 0, y: 0 });
+      return;
+    }
     const updateStars = () => {
       if (canvasRef.current) {
         const canvas = canvasRef.current;

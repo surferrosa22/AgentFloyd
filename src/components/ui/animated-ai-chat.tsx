@@ -923,14 +923,15 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
 
             {/* Voice modal overlay */}
             {voiceModal && (
-                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                    <div className="relative w-full max-w-2xl mx-auto my-8 bg-background rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 p-6 flex flex-col min-h-[400px] max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="relative w-full max-w-xl mx-4 sm:mx-auto bg-background border border-border rounded-xl shadow-lg flex flex-col h-[90vh] max-h-[600px] p-4 overflow-hidden">
                         <button
                           type="button"
+                          aria-label="Close"
                           onClick={() => setVoiceModal(false)}
-                          className="absolute top-4 right-4 z-10 text-base px-3 py-1.5 rounded-full bg-red-600 text-white shadow-md hover:bg-red-500 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+                          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground focus:outline-none"
                         >
-                          Close
+                          <XIcon className="w-5 h-5" />
                         </button>
                         <div className="w-full h-full overflow-y-auto pt-2">
                           <div className="h-full">
