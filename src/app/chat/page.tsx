@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -51,16 +52,18 @@ export default function ChatPage() {
       isDark ? "bg-black text-white" : "bg-white text-black"
     )}>
       {/* Navigation Bar */}
-      <div className="hidden md:block">
-        <NavBar
-          items={[
-            { name: 'Home', url: '/ai-agent', icon: Home },
-            { name: 'Chat', url: '/chat', icon: MessageSquare },
-            { name: 'Settings', url: '/settings', icon: Settings },
-          ]}
-          className="top-0 left-1/2 -translate-x-1/2 z-50 pt-6"
-        />
-      </div>
+      {!voiceModalOpen && (
+        <div className="hidden md:block">
+          <NavBar
+            items={[
+              { name: 'Home', url: '/ai-agent', icon: Home },
+              { name: 'Chat', url: '/chat', icon: MessageSquare },
+              { name: 'Settings', url: '/settings', icon: Settings },
+            ]}
+            className="top-0 left-1/2 -translate-x-1/2 z-50 pt-6"
+          />
+        </div>
+      )}
 
       <div className="relative flex flex-1 w-full">
         <StarsBackground 
@@ -80,21 +83,23 @@ export default function ChatPage() {
         )}
         
         {/* Custom Animated Toggle Button */}
-        <div className={`fixed left-0 top-4 z-[100] hidden sm:block transition-all duration-300 ${
-          isSidebarVisible ? 'sm:ml-64 md:ml-72 lg:ml-80' : 'ml-4'
-        }`}>
-          <div 
-            className={cn(
-              "rounded-md shadow-md backdrop-blur-sm cursor-pointer",
-              isDark ? "bg-background/80" : "bg-gray-100"
-            )}
-          >
-            <AnimatedMenuButton 
-              externalOpen={isSidebarVisible} 
-              onToggle={toggleSidebar} 
-            />
+        {!voiceModalOpen && (
+          <div className={`fixed left-0 top-4 z-[100] hidden sm:block transition-all duration-300 ${
+            isSidebarVisible ? 'sm:ml-64 md:ml-72 lg:ml-80' : 'ml-4'
+          }`}>
+            <div 
+              className={cn(
+                "rounded-md shadow-md backdrop-blur-sm cursor-pointer",
+                isDark ? "bg-background/80" : "bg-gray-100"
+              )}
+            >
+              <AnimatedMenuButton 
+                externalOpen={isSidebarVisible} 
+                onToggle={toggleSidebar} 
+              />
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Main Content - Fix the theme classes to be more stable */}
         <div 
@@ -104,7 +109,7 @@ export default function ChatPage() {
             isDark ? "theme-dark" : "theme-light"
           )}
         >
-          <AnimatedAIChat />
+          <AnimatedAIChat voiceModalOpen={voiceModalOpen} setVoiceModalOpen={setVoiceModalOpen} />
         </div>
       </div>
     </div>

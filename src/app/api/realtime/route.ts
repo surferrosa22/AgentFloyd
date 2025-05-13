@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 // Initialize the OpenAI client
@@ -6,7 +6,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     console.log('Received request for Realtime API session');
     
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         'OpenAI-Beta': 'realtime=v1'
       },
       body: JSON.stringify({
-        model: model || "gpt-4o-mini-realtime",
+        model: model || "gpt-4o-realtime-preview",
         voice: voice || "alloy",
       }),
     });

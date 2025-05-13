@@ -26,7 +26,7 @@ export function useRealtimeApiWs({
   onMessage,
   onError,
   autoConnect = false,
-  model = 'gpt-4o-mini-realtime',
+  model = 'gpt-3.5-turbo',
   voice = 'alloy',
 }: UseRealtimeApiWsProps = {}) {
   const [isConnected, setIsConnected] = useState(false);

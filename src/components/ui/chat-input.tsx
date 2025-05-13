@@ -14,6 +14,7 @@ interface ChatInputProps {
   onEnhance?: () => void;
   onAttachFile?: () => void;
   onShowCommands?: () => void;
+  onVoice?: () => void;
   isTyping?: boolean;
   showCommands?: boolean;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
@@ -28,6 +29,7 @@ export function ChatInput({
   onEnhance,
   onAttachFile,
   onShowCommands,
+  onVoice,
   isTyping = false,
   showCommands = false,
   inputRef,
@@ -88,6 +90,38 @@ export function ChatInput({
         </div>
 
         <div className="flex items-center gap-2">
+          {onVoice && (
+            <motion.button
+              type="button"
+              onClick={onVoice}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                isDark
+                  ? "bg-white/[0.08] text-white/90 hover:bg-white/[0.12]"
+                  : "bg-black/[0.08] text-black/90 hover:bg-black/[0.12]"
+              )}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 1.5a3 3 0 00-3 3v7a3 3 0 006 0v-7a3 3 0 00-3-3zM5 10.5a7 7 0 0014 0M12 21v-3"
+                />
+              </svg>
+              <span>Voice</span>
+            </motion.button>
+          )}
+
           {onEnhance && (
             <motion.button
               type="button"

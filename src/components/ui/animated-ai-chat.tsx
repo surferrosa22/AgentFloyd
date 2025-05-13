@@ -28,6 +28,7 @@ import { ChatMessageComponent } from './chat-message';
 import { useTheme } from '@/components/theme-provider';
 import { ChatInputWrapper, ChatPlaceholder } from './chat-input-wrapper';
 import { ChatInput } from './chat-input';
+import { RealtimeChatFixed } from '@/components/RealtimeChatFixed';
 
 interface UseAutoResizeTextareaProps {
     minHeight: number;
@@ -165,7 +166,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 )
 Textarea.displayName = "Textarea"
 
-export function AnimatedAIChat() {
+interface AnimatedAIChatProps {
+  voiceModalOpen?: boolean;
+  setVoiceModalOpen?: (open: boolean) => void;
+}
+
+export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAIChatProps) {
     const [value, setValue] = useState("");
     const [attachments, setAttachments] = useState<string[]>([]);
     const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -184,6 +190,9 @@ export function AnimatedAIChat() {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
     const [scrollPosition, setScrollPosition] = useState(0);
+    const [internalVoiceModal, setInternalVoiceModal] = useState(false);
+    const voiceModal = typeof voiceModalOpen === 'boolean' ? voiceModalOpen : internalVoiceModal;
+    const setVoiceModal = setVoiceModalOpen || setInternalVoiceModal;
     
     // Use theme context
     const { resolvedTheme } = useTheme();
@@ -827,6 +836,7 @@ export function AnimatedAIChat() {
                                 }}
                                 onSend={handleSendMessage}
                                 onEnhance={handleEnhancePrompt}
+                                onVoice={() => setVoiceModal(true)}
                                 onAttachFile={handleAttachFile}
                                 onShowCommands={() => setShowCommandPalette(true)}
                                 isTyping={isTyping}
@@ -847,7 +857,7 @@ export function AnimatedAIChat() {
                                 >
                                     {attachments.map((file, index) => (
                                         <motion.div
-                                            key={`attachment-${file}-${index}`}
+                                            key={`attachment-${file}`}
                                             className={cn(
                                                 "flex items-center gap-2 text-xs py-1.5 px-3 rounded-lg",
                                                 isDark
@@ -909,6 +919,26 @@ export function AnimatedAIChat() {
                         mass: 0.5,
                     }}
                 />
+            )}
+
+            {/* Voice modal overlay */}
+            {voiceModal && (
+                <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                    <div className="relative w-full max-w-2xl mx-auto my-8 bg-background rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 p-6 flex flex-col min-h-[400px] max-h-[90vh] overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => setVoiceModal(false)}
+                          className="absolute top-4 right-4 z-10 text-base px-3 py-1.5 rounded-full bg-red-600 text-white shadow-md hover:bg-red-500 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+                        >
+                          Close
+                        </button>
+                        <div className="w-full h-full overflow-y-auto pt-2">
+                          <div className="h-full">
+                            <RealtimeChatFixed />
+                          </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
