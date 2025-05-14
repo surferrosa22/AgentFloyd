@@ -907,7 +907,7 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
 
             {inputFocused && (
                 <motion.div 
-                    className="fixed w-[50rem] h-[50rem] rounded-full pointer-events-none z-0 opacity-[0.02] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 blur-[96px]"
+                    className="fixed w-[50rem] h-[50rem] rounded-full pointer-events-none z-0 opacity-[0.02] bg-gradient-to-r from-violet-500/10 to-indigo-500/10 blur-[96px]"
                     animate={{
                         x: mousePosition.x - 400,
                         y: mousePosition.y - 400,
@@ -923,22 +923,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
 
             {/* Voice modal overlay */}
             {voiceModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="relative w-full max-w-xl mx-4 sm:mx-auto bg-background border border-border rounded-xl shadow-lg flex flex-col h-[90vh] max-h-[600px] p-4 overflow-hidden">
-                        <button
-                          type="button"
-                          aria-label="Close"
-                          onClick={() => setVoiceModal(false)}
-                          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground focus:outline-none"
-                        >
-                          <XIcon className="w-5 h-5" />
-                        </button>
-                        <div className="w-full h-full overflow-y-auto pt-2">
-                          <div className="h-full">
-                            <RealtimeChatFixed />
-                          </div>
-                        </div>
-                    </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <RealtimeChatFixed />
                 </div>
             )}
         </div>
@@ -1110,5 +1096,3 @@ if (typeof document !== 'undefined') {
     style.innerHTML = rippleKeyframes + customScrollbarStyles + clickableElementsStyles;
     document.head.appendChild(style);
 }
-
-

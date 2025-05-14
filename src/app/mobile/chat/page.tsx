@@ -8,6 +8,10 @@ import { MobileSidebar } from '@/components/ui/mobile-sidebar';
 import Link from 'next/link';
 import { useTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+
+// Lazy load fluid background
+const DynamicSplashCursor = dynamic(() => import('@/components/ui/splash-cursor').then(m => m.SplashCursor), { ssr: false });
 
 export default function MobileChatPage() {
   const { resolvedTheme } = useTheme();
@@ -35,6 +39,8 @@ export default function MobileChatPage() {
       isDark ? 'bg-black' : 'bg-white'
     )}>
       <StarsBackground className="fixed inset-0 z-0" starDensity={0.0005} allStarsTwinkle={true} minTwinkleSpeed={0.5} maxTwinkleSpeed={1} twinkleProbability={1} />
+      
+      {/* Removed heavy fluid background on mobile for performance */}
       
       {/* Mobile Sidebar */}
       {!voiceModalOpen && <MobileSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />}

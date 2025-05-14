@@ -21,49 +21,15 @@ export async function POST(req: Request) {
     const { model, voice } = await req.json();
     console.log('Request parameters:', { model, voice });
     
-    // Make a direct request to the OpenAI API
-    console.log('Making request to OpenAI API');
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-        'OpenAI-Beta': 'realtime=v1'
-      },
-      body: JSON.stringify({
-        model: model || "gpt-4o-realtime-preview",
-        voice: voice || "alloy",
-      }),
+    // Use official OpenAI SDK to create Realtime session (handles headers, retries, etc.)
+    console.log('Creating realtime session via OpenAI SDK');
+    const session = await openai.beta.realtime.sessions.create({
+      model: model || 'gpt-4o-realtime-preview',
+      voice: voice || 'alloy',
     });
 
-    const responseBody = await response.text();
-    console.log('API Response status:', response.status);
-    
-    if (!response.ok) {
-      console.error('OpenAI API error:', response.status, responseBody);
-      return NextResponse.json(
-        { 
-          error: `OpenAI API responded with status ${response.status}`,
-          details: responseBody
-        },
-        { status: response.status }
-      );
-    }
-
-    try {
-      const session = JSON.parse(responseBody);
-      console.log('Successfully created session');
-      return NextResponse.json(session);
-    } catch (parseError) {
-      console.error('Error parsing JSON response:', parseError);
-      return NextResponse.json(
-        { 
-          error: 'Failed to parse API response',
-          raw: responseBody
-        },
-        { status: 500 }
-      );
-    }
+    console.log('Successfully created session');
+    return NextResponse.json(session);
   } catch (error) {
     console.error('Error creating realtime session:', error);
     return NextResponse.json(

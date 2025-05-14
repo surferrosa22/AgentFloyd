@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AnimatedAIChat } from '@/components/ui/animated-ai-chat';
+import dynamic from 'next/dynamic';
 import { StarsBackground } from '@/components/ui/stars-background';
 import { ChatSidebar } from '@/components/ui/chat-sidebar';
 import { Component as AnimatedMenuButton } from '@/components/ui/demo';
@@ -9,6 +10,11 @@ import { NavBar } from '@/components/ui/tubelight-navbar';
 import { Home, MessageSquare, Settings } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
+
+// Lazy load the heavy fluid background only on the client when needed
+const DynamicSplashCursor = dynamic(() => import('@/components/ui/splash-cursor').then(m => m.SplashCursor), {
+  ssr: false,
+});
 
 export default function ChatPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
@@ -74,6 +80,8 @@ export default function ChatPage() {
           maxTwinkleSpeed={1} 
           twinkleProbability={1} 
         />
+        
+        {/* Fluid simulation background removed for performance */}
         
         {/* Sidebar */}
         {isSidebarVisible && (
