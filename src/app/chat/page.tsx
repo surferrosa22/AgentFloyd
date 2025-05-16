@@ -83,9 +83,9 @@ export default function ChatPage() {
         
         {/* Fluid simulation background removed for performance */}
         
-        {/* Sidebar */}
-        {isSidebarVisible && (
-          <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80 sticky top-0 h-screen overflow-hidden">
+        {/* Sidebar - Absolute positioning so it doesn't push content */}
+        {isSidebarVisible && !voiceModalOpen && (
+          <div className="hidden sm:block sm:w-64 md:w-72 lg:w-80 fixed left-0 top-0 bottom-0 bg-transparent z-10">
             <ChatSidebar />
           </div>
         )}
@@ -109,11 +109,11 @@ export default function ChatPage() {
           </div>
         )}
         
-        {/* Main Content - Fix the theme classes to be more stable */}
+        {/* Main Content - Not affected by sidebar */}
         <div 
           ref={chatContainerRef}
           className={cn(
-            "relative z-10 flex-1",
+            "relative z-5 flex-1 w-full",
             isDark ? "theme-dark" : "theme-light"
           )}
         >

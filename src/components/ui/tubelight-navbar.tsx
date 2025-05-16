@@ -1,10 +1,9 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { motion } from "framer-motion"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LucideIcon } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
 
@@ -93,6 +92,30 @@ export function NavBar({ items, className }: NavBarProps) {
           const Icon = item.icon
           const isActive = activeTab === item.name
 
+          if (item.name === 'Home') {
+            return (
+              <Link
+                key={item.name}
+                href={item.url}
+                onClick={() => setActiveTab(item.name)}
+                className={cn(
+                  "relative cursor-pointer text-sm font-semibold px-6 py-2 rounded-full transition-colors",
+                  isDarkMode
+                    ? "text-foreground/80 hover:text-primary"
+                    : "text-gray-700 hover:text-primary",
+                  isActive && (isDarkMode
+                    ? "bg-muted text-primary"
+                    : "bg-gray-100 text-primary")
+                )}
+              >
+                <span className="hidden md:inline">{item.name}</span>
+                <span className="md:hidden">
+                  <Icon size={18} strokeWidth={2.5} />
+                </span>
+              </Link>
+            )
+          }
+
           return (
             <Link
               key={item.name}
@@ -112,30 +135,6 @@ export function NavBar({ items, className }: NavBarProps) {
               <span className="md:hidden">
                 <Icon size={18} strokeWidth={2.5} />
               </span>
-              {isActive && (
-                <motion.div
-                  layoutId="lamp"
-                  className={cn(
-                    "absolute inset-0 w-full rounded-full -z-10",
-                    isDarkMode ? "bg-primary/5" : "bg-primary/10"
-                  )}
-                  initial={false}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 30,
-                  }}
-                >
-                  <div className={cn(
-                    "absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-full",
-                    isDarkMode ? "bg-primary" : "bg-primary"
-                  )}>
-                    <div className="absolute w-12 h-6 bg-primary/20 rounded-full blur-md -top-2 -left-2" />
-                    <div className="absolute w-8 h-6 bg-primary/20 rounded-full blur-md -top-1" />
-                    <div className="absolute w-4 h-4 bg-primary/20 rounded-full blur-sm top-0 left-2" />
-                  </div>
-                </motion.div>
-              )}
             </Link>
           )
         })}

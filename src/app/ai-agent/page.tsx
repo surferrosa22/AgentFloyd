@@ -46,7 +46,7 @@ export default function FloydAIAgentLanding() {
       </div>
       <NavBar
         items={[
-          { name: 'Home', url: 'http://192.168.1.45:3000/ai-agent', icon: Home },
+          { name: 'Home', url: '/ai-agent', icon: Home },
           { name: 'Chat', url: '/chat', icon: Mail },
           { name: 'Settings', url: '/settings', icon: Settings },
         ]}

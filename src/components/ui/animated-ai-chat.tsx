@@ -189,7 +189,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
-    const [scrollPosition, setScrollPosition] = useState(0);
+    // Fixed scrollPosition to 0 to prevent any movement effects
+    const scrollPosition = 0;
     const [internalVoiceModal, setInternalVoiceModal] = useState(false);
     const voiceModal = typeof voiceModalOpen === 'boolean' ? voiceModalOpen : internalVoiceModal;
     const setVoiceModal = setVoiceModalOpen || setInternalVoiceModal;
@@ -337,27 +338,17 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
     });
 
     // Enhanced scrollToBottom with improved reliability and proper throttling
-    const scrollToBottom = useCallback((smooth = false) => {
-        if (!messagesContainerRef.current || scrollOpRef.current.isScrolling) return;
-        
-        // Mark that a scroll operation is in progress
+    const scrollToBottom = useCallback((smooth = true) => {
+        if (scrollOpRef.current.isScrolling) return;
+        if (!messagesEndRef.current) return;
         scrollOpRef.current.isScrolling = true;
-        
-        // Clear any existing timeout
-        if (scrollOpRef.current.timeoutId) {
-            clearTimeout(scrollOpRef.current.timeoutId);
-        }
-        
-        // Get container measurements
-        const container = messagesContainerRef.current;
-        
-        // Use direct DOM manipulation for smoother scrolling
-        container.scrollTop = container.scrollHeight;
-        
-        // Set a timeout to allow further scroll operations after a delay
+
+        messagesEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+
+        if (scrollOpRef.current.timeoutId) clearTimeout(scrollOpRef.current.timeoutId);
         scrollOpRef.current.timeoutId = setTimeout(() => {
             scrollOpRef.current.isScrolling = false;
-        }, 300); // Prevent new scroll operations for 300ms
+        }, 300);
     }, []);
 
     // Use a single function to handle all scroll triggers
@@ -461,10 +452,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
             // Force auto-scroll when sending a message
             setIsAutoScrollEnabled(true);
             
-            // Direct scroll to bottom when sending
-            if (messagesContainerRef.current) {
-                messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-            }
+            // Scroll to bottom immediately after sending
+            scrollToBottom(false);
         }
     };
 
@@ -473,21 +462,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
         setInputFocused(true);
     };
 
-    // Track scroll position for parallax effect with useCallback
-    const handleScroll = useCallback(() => {
-        const container = messagesContainerRef.current;
-        if (container) {
-            setScrollPosition(container.scrollTop);
-        }
-    }, []);
-
-    useEffect(() => {
-        const container = messagesContainerRef.current;
-        if (container) {
-            container.addEventListener('scroll', handleScroll);
-            return () => container.removeEventListener('scroll', handleScroll);
-        }
-    }, [handleScroll]);
+    // Scroll tracking disabled to prevent star movement
+    // Previously was tracking scroll for parallax effect
 
     // Prevent page scrolling
     useEffect(() => {
@@ -591,28 +567,7 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
         adjustHeight(true);
     };
 
-    // Star element rendering
-    const renderStarElements = () => {
-        return Array(15).fill(0).map((_, i) => (
-            <div 
-                key={`star-element-${i}-${Math.random().toString(36).substring(7)}`}
-                className={cn(
-                    "absolute rounded-full", 
-                    isDark ? "bg-white/20" : "bg-black/10",
-                )}
-                style={{
-                    width: `${Math.random() * 2 + 1}px`,
-                    height: `${Math.random() * 2 + 1}px`,
-                    top: `${Math.random() * 100}%`,
-                    left: `${Math.random() * 100}%`,
-                    opacity: 0.5 + Math.random() * 0.5,
-                    transform: `translateY(${scrollPosition * (i % 5 === 0 ? -0.15 : i % 3 === 0 ? 0.12 : -0.08)}px)`,
-                    boxShadow: isDark ? '0 0 4px rgba(255, 255, 255, 0.5)' : 'none',
-                    animation: `twinkling ${2 + Math.random() * 3}s infinite alternate ${Math.random() * 2}s`
-                }}
-            />
-        ));
-    };
+    // Star elements have been removed to prevent cursor-related movement issues
     
     // Command suggestion rendering
     const renderCommandSuggestions = () => {
@@ -667,9 +622,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                         isDark ? "bg-violet-500/10" : "bg-violet-500/5"
                     )}
                     style={{
-                        top: `calc(0% + ${scrollPosition * 0.05}px)`, 
-                        left: '25%',
-                        transform: `translateY(${scrollPosition * -0.03}px)`
+                        top: '0%', 
+                        left: '25%'
                     }}
                 />
                 <div 
@@ -678,9 +632,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                         isDark ? "bg-indigo-500/10" : "bg-indigo-500/5"
                     )}
                     style={{
-                        bottom: `calc(0% + ${scrollPosition * 0.02}px)`, 
-                        right: '25%',
-                        transform: `translateY(${scrollPosition * 0.04}px)`
+                        bottom: '0%', 
+                        right: '25%'
                     }}
                 />
                 <div 
@@ -689,14 +642,12 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                         isDark ? "bg-fuchsia-500/10" : "bg-fuchsia-500/5"
                     )}
                     style={{
-                        top: `calc(25% + ${scrollPosition * 0.07}px)`, 
-                        right: '33%',
-                        transform: `translateY(${scrollPosition * -0.025}px)`
+                        top: '25%', 
+                        right: '33%'
                     }}
                 />
                 
-                {/* Add some small star elements that move more dramatically */}
-                {renderStarElements()}
+                {/* Star elements removed to fix cursor movement issues */}
             </div>
 
             {/* Add twinkling animation */}
@@ -708,6 +659,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
             `}</style>
 
             <div className="w-full max-w-2xl mx-auto relative flex flex-col h-[calc(100vh-40px)] overflow-hidden">
+                {/* Header removed */}
+                
                 <motion.div 
                     ref={messagesContainerRef}
                     className={cn(
@@ -749,8 +702,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                 >
                     {/* Button controls positioned directly above input */}
                     <div className="relative">
-                        <div className="absolute right-2 -top-14 flex space-x-2 z-50">
-                            {/* Go down button - enhanced and more visible */}
+                        <div className="absolute left-0 right-0 -top-14 flex justify-center space-x-2 z-50">
+                            {/* Go down button - centered and more aesthetically consistent */}
                             <AnimatePresence>
                                 {showScrollButton && (
                                     <motion.button
@@ -760,11 +713,11 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                                             setIsAutoScrollEnabled(true);
                                         }}
                                         className={cn(
-                                            "p-2 rounded-full cursor-pointer shadow-md",
-                                            "flex items-center justify-center gap-1",
+                                            "w-10 h-10 rounded-full shadow-md",
+                                            "flex items-center justify-center",
                                             isDark 
-                                                ? "bg-violet-600/90 hover:bg-violet-500 text-white/90" 
-                                                : "bg-violet-500/90 hover:bg-violet-400 text-white/90"
+                                                ? "bg-white/10 hover:bg-white/20 text-white/90" 
+                                                : "bg-black/10 hover:bg-black/20 text-black/90"
                                         )}
                                         initial={{ opacity: 0, y: 10, scale: 0.8 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -773,24 +726,14 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                                         whileTap={{ scale: 0.95 }}
                                         title="Scroll to bottom"
                                     >
-                                        <ChevronDown className="w-4 h-4" />
-                                        <span className="text-xs font-medium">New messages</span>
+                                        <ChevronDown className="w-5 h-5" />
                                     </motion.button>
                                 )}
                             </AnimatePresence>
                         </div>
                     </div>
 
-                    {/* Gradient overlay to ensure visual separation */}
-                    <div 
-                        className={cn(
-                            "absolute left-0 right-0 bottom-0 w-full z-40",
-                            "h-20 pointer-events-none top-[-20px]",
-                            isDark 
-                                ? "bg-gradient-to-t from-black via-black/90 to-transparent" 
-                                : "bg-gradient-to-t from-white via-white/90 to-transparent"
-                        )}
-                    />
+                    {/* Gradient overlay removed */}
 
                     <motion.div 
                         className={cn(
@@ -836,7 +779,10 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                                 }}
                                 onSend={handleSendMessage}
                                 onEnhance={handleEnhancePrompt}
-                                onVoice={() => setVoiceModal(true)}
+                                onVoice={() => {
+                                    // Just open voice modal; mic permission and connect happen on Connect button
+                                        setVoiceModal(true);
+                                }}
                                 onAttachFile={handleAttachFile}
                                 onShowCommands={() => setShowCommandPalette(true)}
                                 isTyping={isTyping}
@@ -890,11 +836,15 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
                 </div>
             </div>
 
-            {/* Loading indicator - Show a spinner instead of text */}
+            {/* Loading indicator - Updated for visual balance */}
             <AnimatePresence>
                 {(isTyping && !hasGeneratingMessage) || (hasGeneratingMessage && !isTyping) ? (
                     <motion.div 
-                        className="fixed bottom-36 left-1/2 transform -translate-x-1/2 backdrop-blur-2xl bg-white/[0.02] rounded-full p-2 shadow-lg border border-white/[0.05] z-40"
+                        className="fixed bottom-36 left-1/2 transform -translate-x-1/2 backdrop-blur-xl rounded-full p-2.5 shadow-lg border z-40"
+                        style={{
+                            borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                            background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+                        }}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
@@ -924,8 +874,8 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
             {/* Voice modal overlay */}
             {voiceModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <RealtimeChatFixed />
-                </div>
+                <RealtimeChatFixed onClose={() => setVoiceModal(false)} />
+             </div>
             )}
         </div>
     );
@@ -933,13 +883,21 @@ export function AnimatedAIChat({ voiceModalOpen, setVoiceModalOpen }: AnimatedAI
 
 // Update the TypingDots function to be a LoadingSpinner
 function LoadingSpinner() {
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
+    
     return (
         <div className="flex items-center justify-center">
             <motion.div 
-                className="w-5 h-5 rounded-full border-2 border-transparent border-t-white/70 border-l-white/70"
+                className={cn(
+                    "w-6 h-6 rounded-full",
+                    isDark 
+                        ? "border-2 border-white/10 border-t-white/70 border-l-white/40"
+                        : "border-2 border-black/10 border-t-black/70 border-l-black/40"
+                )}
                 animate={{ rotate: 360 }}
                 transition={{ 
-                    duration: 1,
+                    duration: 1.2,
                     repeat: Number.POSITIVE_INFINITY,
                     ease: "linear"
                 }}

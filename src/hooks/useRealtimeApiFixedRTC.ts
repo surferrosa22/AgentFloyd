@@ -326,9 +326,10 @@ export function useRealtimeApiRTC({
         }
       };
       
-      // Step 5: Get microphone access and add audio track
+      // Step 5: Get microphone access and add audio tracks
+      console.log('Requesting microphone access');
+      let stream: MediaStream | null = null;
       try {
-        console.log('Requesting microphone access');
         const mediaConstraints = { 
           audio: { 
             echoCancellation: true,
@@ -337,18 +338,27 @@ export function useRealtimeApiRTC({
           }, 
           video: false 
         };
-        
-        const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
         mediaStreamRef.current = stream;
-        console.log('Microphone access granted, adding tracks');
-        
-        for (const track of stream.getAudioTracks()) {
-          console.log('Adding audio track to peer connection:', track.label);
-          pc.addTrack(track, stream);
-        }
+        console.log('Microphone access granted');
       } catch (err) {
         console.error('Microphone access error:', err);
-        throw new Error('Microphone access denied or not available');
+        const micError = err instanceof Error ? err : new Error('Microphone access denied or not available');
+        setError(micError);
+        onError?.(micError);
+        cleanup();
+        return;
+      }
+      if (stream) {
+        console.log('Adding audio tracks to peer connection');
+        for (const track of stream.getAudioTracks()) {
+          try {
+          console.log('Adding audio track to peer connection:', track.label);
+          pc.addTrack(track, stream);
+          } catch (err) {
+            console.warn('Failed to add audio track to peer connection:', err);
+          }
+        }
       }
       
       // Step 6: Set up data channel
@@ -684,8 +694,17 @@ export function useRealtimeApiRTC({
       };
       
       console.log('Setting remote description');
+      try {
       await pc.setRemoteDescription(answer);
       console.log('Remote description set, connection established');
+      } catch (err) {
+        console.error('Error setting remote description:', err);
+        const remoteError = err instanceof Error ? err : new Error(String(err));
+        setError(remoteError);
+        onError?.(remoteError);
+        cleanup();
+        return;
+      }
       
     } catch (err) {
       console.error('Connection error:', err);

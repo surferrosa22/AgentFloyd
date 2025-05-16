@@ -66,35 +66,35 @@ export function ChatSidebar() {
   
   return (
     <div className={cn(
-      "h-full flex flex-col overflow-hidden backdrop-blur-sm border-r",
+      "h-full flex flex-col overflow-hidden backdrop-blur-lg",
       isDark 
-        ? "bg-black/10 border-white/5" 
-        : "bg-white/80 border-gray-200"
+        ? "bg-black/10 border-r border-white/10" 
+        : "bg-white/90 border-r border-black/5"
     )}>
-      <div className="p-4">
+      <div className="p-5">
         <Button
           onClick={handleNewChat}
-          className="w-full justify-start gap-2"
+          className="w-full justify-center gap-2 rounded-full h-10 transition-all"
           variant={isDark ? "outline" : "secondary"}
         >
           <PlusCircle className="h-4 w-4" />
-          New Chat
+          <span>New Chat</span>
         </Button>
       </div>
       
-      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1 max-h-[calc(100vh-140px)]">
+      <div className="flex-1 overflow-y-auto py-2 px-3 space-y-1.5 max-h-[calc(100vh-140px)]">
         {sortedChats.map((chat) => (
           <div 
             key={chat.id} 
             className={cn(
-              "group flex items-center justify-between rounded-lg p-2 text-sm transition-colors relative",
+              "group flex items-center justify-between rounded-xl p-2.5 text-sm transition-all relative",
               currentChatId === chat.id 
                 ? isDark 
-                  ? "bg-primary/15 text-primary backdrop-blur-md" 
-                  : "bg-primary/10 text-primary backdrop-blur-md"
+                  ? "bg-violet-600/20 text-white backdrop-blur-sm shadow-sm" 
+                  : "bg-violet-50 text-violet-900 backdrop-blur-sm shadow-sm"
                 : isDark
-                  ? "hover:bg-white/5 text-white/70 hover:backdrop-blur-md"
-                  : "hover:bg-black/5 text-black/70 hover:backdrop-blur-md"
+                  ? "hover:bg-white/5 text-white/90 hover:backdrop-blur-sm"
+                  : "hover:bg-black/5 text-black/90 hover:backdrop-blur-sm"
             )}
           >
             <AnimatePresence>
@@ -105,7 +105,7 @@ export function ChatSidebar() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
                   className={cn(
-                    "absolute inset-0 z-10 flex items-center justify-between px-3 py-2 rounded-lg shadow-md",
+                    "absolute inset-0 z-10 flex items-center justify-between px-3 py-2 rounded-xl shadow-md",
                     isDark 
                       ? "bg-gray-900/95 border border-red-900/30" 
                       : "bg-white/95 border border-red-200"
@@ -123,7 +123,7 @@ export function ChatSidebar() {
                         e.stopPropagation();
                         handleCancelDelete();
                       }}
-                      className="h-7 text-xs"
+                      className="h-7 text-xs rounded-full"
                     >
                       Cancel
                     </Button>
@@ -134,7 +134,7 @@ export function ChatSidebar() {
                         e.stopPropagation();
                         handleConfirmDelete(chat.id);
                       }}
-                      className="h-7 text-xs"
+                      className="h-7 text-xs rounded-full"
                     >
                       Delete
                     </Button>
@@ -154,19 +154,39 @@ export function ChatSidebar() {
                     if (e.key === 'Escape') cancelEditing();
                   }}
                   className={cn(
-                    "flex-1 backdrop-blur-sm px-2 py-1 rounded outline-none focus:ring-1 focus:ring-primary/50",
+                    "flex-1 backdrop-blur-sm px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-violet-500/50",
                     isDark 
-                      ? "bg-black/10 text-white border border-white/10" 
-                      : "bg-white/10 text-black border border-gray-200"
+                      ? "bg-black/20 text-white border border-white/10" 
+                      : "bg-white/90 text-black border border-gray-200"
                   )}
                   ref={(input) => input?.focus()}
                 />
-                <Button variant="ghost" size="icon" onClick={() => saveTitle(chat.id)}>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => saveTitle(chat.id)}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center",
+                    isDark
+                      ? "bg-white/10 text-white/90 hover:bg-white/20"
+                      : "bg-black/5 text-black/90 hover:bg-black/10"
+                  )}
+                >
                   <Check className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={cancelEditing}>
+                </motion.button>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={cancelEditing}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center",
+                    isDark
+                      ? "bg-white/10 text-white/90 hover:bg-white/20"
+                      : "bg-black/5 text-black/90 hover:bg-black/10"
+                  )}
+                >
                   <X className="h-4 w-4" />
-                </Button>
+                </motion.button>
               </div>
             ) : (
               <>
@@ -181,7 +201,18 @@ export function ChatSidebar() {
                   }}
                   className="flex flex-1 items-center gap-2 overflow-hidden text-left"
                 >
-                  <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                  <div className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
+                    currentChatId === chat.id
+                      ? isDark 
+                        ? "bg-violet-500/30" 
+                        : "bg-violet-100"
+                      : isDark
+                        ? "bg-white/10" 
+                        : "bg-black/5"
+                  )}>
+                    <MessageSquare className="h-3.5 w-3.5 flex-shrink-0" />
+                  </div>
                   <span className="truncate">{chat.title}</span>
                   
                   <span className="ml-auto text-xs opacity-50">
@@ -189,31 +220,36 @@ export function ChatSidebar() {
                   </span>
                 </button>
                 
-                <div className="flex opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                <div className="flex opacity-0 group-hover:opacity-100 transition-opacity ml-2 gap-1">
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={(e) => {
                       e.stopPropagation();
                       startEditingTitle(chat.id, chat.title);
                     }}
-                    className="h-7 w-7"
+                    className={cn(
+                      "w-7 h-7 rounded-full flex items-center justify-center",
+                      isDark
+                        ? "bg-white/10 text-white/90 hover:bg-white/20"
+                        : "bg-black/5 text-black/90 hover:bg-black/10"
+                    )}
                   >
                     <Edit2 className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={(e) => handleDeleteClick(chat.id, e)}
                     className={cn(
-                      "h-7 w-7", 
+                      "w-7 h-7 rounded-full flex items-center justify-center", 
                       isDark 
-                        ? "text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                        : "text-red-600 hover:text-red-700 hover:bg-red-100"
+                        ? "bg-red-900/20 text-red-400 hover:bg-red-900/30" 
+                        : "bg-red-50 text-red-600 hover:bg-red-100"
                     )}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  </motion.button>
                 </div>
               </>
             )}
@@ -225,21 +261,23 @@ export function ChatSidebar() {
       <div className={cn(
         "mt-auto p-4 border-t", 
         isDark 
-          ? "border-white/5" 
+          ? "border-white/10" 
           : "border-gray-200"
       )}>
-        <Link href="/settings">
+        <Link href="/settings" className="block w-full">
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start gap-2", 
+              "w-full justify-center rounded-full h-10 transition-all", 
               isDark 
-                ? "text-white/70 hover:text-white hover:bg-white/5" 
-                : "text-gray-600 hover:text-black hover:bg-gray-100"
+                ? "text-white/80 hover:text-white hover:bg-white/10" 
+                : "text-gray-700 hover:text-black hover:bg-gray-100"
             )}
           >
-            <Settings className="h-4 w-4" />
-            <span>Settings</span>
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
+            </div>
           </Button>
         </Link>
       </div>

@@ -43,7 +43,7 @@ export default function PlansPage() {
       
       <NavBar
         items={[
-          { name: 'Home', url: 'http://192.168.1.45:3000/ai-agent', icon: Home },
+          { name: 'Home', url: '/ai-agent', icon: Home },
           { name: 'Chat', url: '/chat', icon: Mail },
           { name: 'Plans', url: '/plans', icon: CreditCard },
           { name: 'Settings', url: '/settings', icon: Settings },

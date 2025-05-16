@@ -44,19 +44,21 @@ export function MobileSidebar({ isOpen, onToggle }: MobileSidebarProps) {
   return (
     <>
       {/* Toggle Button */}
-      <button
+      <motion.button
         type="button"
         onClick={onToggle}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         className={cn(
-          "fixed left-4 top-4 z-50 p-2 rounded-md transition-colors",
+          "fixed left-4 top-4 z-50 w-10 h-10 flex items-center justify-center rounded-full shadow-md transition-all",
           isDark 
-            ? "bg-black/20 text-white hover:bg-black/40 backdrop-blur-sm" 
-            : "bg-white/70 text-black hover:bg-white/90 backdrop-blur-sm",
+            ? "bg-black/30 text-white/90 hover:bg-black/40 backdrop-blur-sm" 
+            : "bg-white/70 text-black/90 hover:bg-white/90 backdrop-blur-sm",
           isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
         )}
       >
         <Menu size={20} />
-      </button>
+      </motion.button>
       
       {/* Sidebar and Overlay */}
       <AnimatePresence>
@@ -81,18 +83,20 @@ export function MobileSidebar({ isOpen, onToggle }: MobileSidebarProps) {
             >
               <div className="relative h-full">
                 {/* Close Button */}
-                <button
+                <motion.button
                   type="button"
                   onClick={onToggle}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={cn(
-                    "absolute right-4 top-4 z-10 p-2 rounded-full",
+                    "absolute right-4 top-4 z-10 w-10 h-10 flex items-center justify-center rounded-full shadow-sm",
                     isDark 
-                      ? "bg-white/10 text-white hover:bg-white/20" 
-                      : "bg-black/10 text-black hover:bg-black/20"
+                      ? "bg-white/10 text-white/90 hover:bg-white/20" 
+                      : "bg-black/10 text-black/90 hover:bg-black/20"
                   )}
                 >
                   <X size={20} />
-                </button>
+                </motion.button>
                 
                 {/* Sidebar Content */}
                 <div className="h-full">

@@ -97,13 +97,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save chats to localStorage when they change
+  // Save chats and currentChatId to localStorage when they change, or remove them if empty
   useEffect(() => {
     if (chats.length > 0) {
       localStorage.setItem('floyd-chats', JSON.stringify(chats));
+    } else {
+      localStorage.removeItem('floyd-chats');
     }
     if (currentChatId) {
       localStorage.setItem('floyd-current-chat-id', currentChatId);
+    } else {
+      localStorage.removeItem('floyd-current-chat-id');
     }
   }, [chats, currentChatId]);
 
@@ -130,9 +134,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             ...chat,
             messages: [...chat.messages, newMessage],
             updatedAt: Date.now(),
-            // Update title based on first user message if it's still the default
-            title: chat.title === 'New Chat' && role === 'user' 
-              ? content.substring(0, 30) + (content.length > 30 ? '...' : '')
+            // Update title only for the first user message (when still using default title)
+            title: role === 'user' && chat.title === 'New Chat'
+              ? (content.length > 30 ? `${content.substring(0, 30)}...` : content)
               : chat.title
           };
         }
@@ -144,7 +148,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const sendMessage = async (content: string) => {
-    if (!content.trim() || !currentChatId) return;
+    // Prevent sending empty messages
+    if (!content.trim()) return;
 
     // Add user message
     addMessage(content, 'user');
@@ -159,55 +164,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // If chat not found, create a new one instead of throwing an error
       if (!currentChat) {
         console.warn('Current chat not found, creating a new one');
-        // Create a new chat and update state directly to ensure it exists
+        // Create and initialize a new chat
         const newChat = createEmptyChat();
         const newChatId = newChat.id;
-        
-        // Update chats directly for immediate effect
-        const updatedChats = [...chats, newChat];
-        setChats(updatedChats);
-        localStorage.setItem('floyd-chats', JSON.stringify(updatedChats));
-        
-        // Set as current chat
+        const initialChats = [...chats, newChat];
+        setChats(initialChats);
+        localStorage.setItem('floyd-chats', JSON.stringify(initialChats));
+        // Make it the active chat
         setCurrentChatId(newChatId);
         localStorage.setItem('floyd-current-chat-id', newChatId);
-        
-        // Add the user message to the new chat directly
-        const userMessage = {
-          id: generateUniqueId(),
-          role: 'user' as const,
-          content,
-          timestamp: Date.now()
-        };
-        
-        newChat.messages.push(userMessage);
-        setChats(updatedChats);
-        localStorage.setItem('floyd-chats', JSON.stringify(updatedChats));
-        
-        // Format messages for the API with just the current message
-        const apiMessages = [{
-          role: 'user',
-          content
-        }];
-        
-        // Continue with API call
+        // Build and append the user message
+        const userMessage: ChatMessage = { id: generateUniqueId(), role: 'user', content, timestamp: Date.now() };
+        const chatsWithUser = initialChats.map(chat =>
+          chat.id === newChatId
+            ? { 
+                ...chat, 
+                messages: [...chat.messages, userMessage], 
+                updatedAt: Date.now(),
+                // Set chat title based on the first user message
+                title: content.length > 30
+                  ? `${content.substring(0, 30)}...`
+                  : content
+              }
+            : chat
+        );
+        setChats(chatsWithUser);
+        localStorage.setItem('floyd-chats', JSON.stringify(chatsWithUser));
+        // Call the chat API
         const response = await fetch('/api/chat', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ messages: apiMessages }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content }] }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to get response from API');
-        }
-
+        if (!response.ok) throw new Error('Failed to get response from API');
         const data = await response.json();
         const assistantResponse = data.response.content;
-
-        // Add assistant response to the new chat
-        addMessage(assistantResponse, 'assistant');
+        // Build and append the assistant message
+        const assistantMessage: ChatMessage = { id: generateUniqueId(), role: 'assistant', content: assistantResponse, timestamp: Date.now() };
+        const chatsWithAssistant = chatsWithUser.map(chat =>
+          chat.id === newChatId
+            ? { ...chat, messages: [...chat.messages, assistantMessage], updatedAt: Date.now() }
+            : chat
+        );
+        setChats(chatsWithAssistant);
+        localStorage.setItem('floyd-chats', JSON.stringify(chatsWithAssistant));
         return;
       }
 
@@ -422,18 +422,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const deleteChat = (chatId: string) => {
     setChats(prevChats => {
       const filteredChats = prevChats.filter(chat => chat.id !== chatId);
-      
-      // If we're deleting the current chat, switch to another one
-      if (currentChatId === chatId && filteredChats.length > 0) {
+
+      // If no chats remain, clear the current chat selection
+      if (filteredChats.length === 0) {
+        setCurrentChatId(null);
+        return [];
+      }
+
+      // If we deleted the active chat, switch to the most recently updated one
+      if (currentChatId === chatId) {
         const sortedChats = [...filteredChats].sort((a, b) => b.updatedAt - a.updatedAt);
         setCurrentChatId(sortedChats[0].id);
-      } else if (filteredChats.length === 0) {
-        // If no chats left, create a new one
-        const newChat = createEmptyChat();
-        setCurrentChatId(newChat.id);
-        return [newChat];
       }
-      
+
       return filteredChats;
     });
   };

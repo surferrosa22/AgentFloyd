@@ -38,7 +38,9 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
       recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
 
         // Automatically send the audio for transcription
         if (onTranscription) {
@@ -70,23 +72,19 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
       const formData = new FormData();
       formData.append('audio', blob);
 
-      // Send to our API endpoint
-      const response = await axios.post('/api/speech', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
+      // Send to diarization API endpoint
+      const response = await axios.post('/api/diarize', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (response.data.success && response.data.text) {
-        setTranscript(response.data.text);
-        if (onTranscription) {
-          onTranscription(response.data.text);
-        }
-      } else {
-        throw new Error(response.data.error || 'Failed to transcribe audio');
+      const { text, error } = response.data;
+      if (error) {
+        throw new Error(error);
       }
+      setTranscript(text);
+      if (onTranscription) onTranscription(text);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error transcribing audio';
+      const errorMessage = err instanceof Error ? err.message : 'Error during speaker diarization';
       setError(errorMessage);
       console.error('Transcription error:', err);
     } finally {

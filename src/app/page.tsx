@@ -44,13 +44,9 @@ export default function Home() {
   }, []);
 
   const handleClick = () => {
-    if (step < 1) {
-      setStep((s) => s + 1);
-      setKey((k) => k + 1);
-    } else {
+    // Proceed directly to Try Floyd step on first click
       setStep(3);
       setKey((k) => k + 1);
-    }
   };
 
   const handleTryFloyd = () => {
@@ -61,9 +57,15 @@ export default function Home() {
     router.push("/ai-agent");
   };
 
+  // Automatically navigate when terms are accepted
+  useEffect(() => {
+    if (accepted) {
+      router.push("/ai-agent");
+    }
+  }, [accepted, router]);
+
   let text = '';
   if (step === 0) text = "Hello there!";
-  else if (step === 1) text = "We've been waiting for you";
 
   return (
     <div className="w-full h-screen flex items-center justify-center">
@@ -83,14 +85,15 @@ export default function Home() {
                   inView
                   variant={zoomFadeVariant}
                 >
-                  <TextShimmer
-                    as="h1"
-                    className="text-4xl font-bold cursor-pointer text-center"
-                    duration={4}
+                  <h1 className="text-4xl font-bold text-center">
+                    <button
+                      type="button"
                     onClick={handleClick}
+                      className="cursor-pointer"
                   >
                     {text}
-                  </TextShimmer>
+                    </button>
+                  </h1>
                 </BlurFade>
               </motion.div>
             </AnimatePresence>
@@ -194,7 +197,7 @@ export default function Home() {
                               <div className="space-y-2">
                                 <h3 className="font-semibold text-sm">Terms and Conditions</h3>
                                 <p className="text-xs text-gray-400">
-                                  By continuing, you agree to our Terms of Service, Privacy Policy, and acceptable use guidelines.
+                                  By accepting, you agree to our Terms of Service, Privacy Policy, and acceptable use guidelines.
                                 </p>
                                 <div className="text-xs text-gray-500">
                                   Click to view the full terms document.
@@ -206,24 +209,6 @@ export default function Home() {
                       </RdxHoverCard.Root>
                     </label>
                   </div>
-                  <AnimatePresence mode="wait">
-                    {accepted && (
-                      <BlurFade
-                        key="continue-btn"
-                        delay={0.15}
-                        inView
-                        variant={zoomFadeVariant}
-                      >
-                        <button
-                          className="mt-2 px-6 py-2 rounded-xl bg-black text-white text-base font-semibold shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black cursor-pointer"
-                          type="button"
-                          onClick={handleContinue}
-                        >
-                          Continue
-                        </button>
-                      </BlurFade>
-                    )}
-                  </AnimatePresence>
                 </div>
               </BlurFade>
             )}

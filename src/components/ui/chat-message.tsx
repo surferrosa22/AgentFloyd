@@ -126,7 +126,7 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
   return (
     <motion.div
       className={cn(
-        "flex gap-3 p-4 w-full max-w-3xl mx-auto",
+        "flex p-4 w-full max-w-3xl mx-auto",
         isUser ? "justify-end" : "justify-start"
       )}
       data-message-role={message.role}
@@ -135,52 +135,26 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
       transition={{ duration: 0.3 }}
     >
       <div className={cn(
-        "flex gap-3 items-start",
+        "flex items-start",
         isUser ? "flex-row-reverse" : "flex-row",
         isUser ? "max-w-[80%]" : "max-w-[90%]"
       )}>
-        <div className={cn(
-          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-1",
-          isUser 
-            ? isDark 
-              ? "bg-white/10 ring-1 ring-white/20" 
-              : "bg-black/5 ring-1 ring-black/10"
-            : isDark 
-              ? "bg-violet-500/20 ring-1 ring-violet-500/30" 
-              : "bg-violet-50 ring-1 ring-violet-200"
-        )}>
-          {isUser ? (
-            <CircleUserRound className={cn(
-              "w-5 h-5",
-              isDark ? "text-white/70" : "text-black/70"
-            )} />
-          ) : (
-            <Sparkles className={cn(
-              "w-4 h-4",
-              isDark ? "text-violet-300" : "text-violet-600",
-              // Add pulsing animation when generating
-              isGenerating ? "animate-pulse" : ""
-            )} />
-          )}
-        </div>
-        
         <div className={cn(
           "flex flex-col space-y-1",
           isUser ? "items-end" : "items-start",
           "w-full"
         )}>
           <div className={cn(
-            "px-5 py-3 rounded-xl text-sm",
+            "px-5 py-3 rounded-2xl text-sm",
             isUser 
               ? isDark 
-                ? "bg-white/90 text-black shadow-lg shadow-white/5"
-                : "bg-black text-white shadow-lg shadow-black/10"
+                ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-800/30"
+                : "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-400/30"
               : isDark
-                ? "bg-white/[0.03] border border-white/[0.05] text-white/90 backdrop-blur-sm"
-                : "bg-white text-black/90 border border-black/5 shadow-sm backdrop-blur-sm",
+                ? "bg-white/10 border border-white/10 text-white/90 backdrop-blur-xl"
+                : "bg-black/5 border border-black/10 text-black/90 backdrop-blur-xl",
             // Add subtle glow when generating
-            isGenerating ? isDark ? "ring-1 ring-violet-500/30" : "ring-1 ring-violet-500/20" : "",
-            "max-w-full overflow-hidden"
+            isGenerating ? isDark ? "ring-1 ring-violet-500/30" : "ring-1 ring-violet-500/20" : ""
           )}>
             {isUser ? (
               <div className="whitespace-pre-wrap break-words">{displayedContent}</div>
@@ -189,7 +163,7 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
                 "prose prose-sm dark:prose-invert max-w-none overflow-auto pr-1",
                 isDark ? "custom-scrollbar-dark" : "custom-scrollbar-light",
                 // Add custom link styles to ensure all links are visible
-                "prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline"
+                "prose-a:text-blue-400 dark:prose-a:text-blue-300 prose-a:no-underline hover:prose-a:underline"
               )}>
                 <ReactMarkdown 
                   remarkPlugins={[
@@ -202,7 +176,7 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
                         const urlPattern = /https?:\/\/[^\s)]+/g;
                         
                         // Visit all text nodes and replace URLs with link nodes
-                        visit(tree, 'text', (node, index, parent) => {
+                        visit(tree, 'text', (node: { value: string; type: string }, index: number, parent: { type: string; children: Array<{ type: string; value?: string; url?: string; children?: Array<{ type: string; value: string }> }> }) => {
                           if (!parent || parent.type === 'link') return;
                           
                           const matches = node.value.match(urlPattern);
@@ -211,7 +185,8 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
                           const parts = [];
                           let lastIndex = 0;
                           
-                          matches.forEach(match => {
+                          // Use for...of instead of forEach
+                          for (const match of matches) {
                             const matchIndex = node.value.indexOf(match, lastIndex);
                             
                             // Add text before the URL
@@ -230,7 +205,7 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
                             });
                             
                             lastIndex = matchIndex + match.length;
-                          });
+                          }
                           
                           // Add remaining text
                           if (lastIndex < node.value.length) {
@@ -374,7 +349,7 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
                     // Use a simpler approach for code blocks
                     code: ({ className, children, ...props }) => {
                       // If it has a language class, it's a code block, not inline
-                      const match = /language-(\w+)/.exec(className || '');
+                      const match: RegExpExecArray | null = /language-(\w+)/.exec(className || '');
                       return !match ? (
                         <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded" {...props}>
                           {children}
