@@ -44,6 +44,14 @@ interface SessionUpdatePayload {
   };
 }
 
+// Utility for safe error message extraction
+function getErrorMessage(e: unknown): string | undefined {
+  if (typeof e === 'object' && e && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  return undefined;
+}
+
 export function useRealtimeApiRTC({
   onMessage,
   onError,
@@ -534,7 +542,7 @@ export function useRealtimeApiRTC({
           
           // If we get an error message from the API, log it but don't disconnect
           if (data.type === 'error') {
-            console.error('Received error from Realtime API:', data);
+            console.error('Received error from Realtime API:', data, data?.message, JSON.stringify(data));
           } else {
             // Function call handling
             if (data.type === 'response.function_call') {
@@ -604,7 +612,8 @@ export function useRealtimeApiRTC({
       };
       
       dataChannel.onerror = (err) => {
-        console.error('Data channel error:', err);
+        const errMsg = getErrorMessage(err);
+        console.error('Data channel error:', err, errMsg, JSON.stringify(err));
         console.log('Data channel error details:', {
           type: err.type,
           errorCode: (err as RTCErrorEvent).error?.errorDetail || 'unknown'
@@ -626,7 +635,8 @@ export function useRealtimeApiRTC({
         };
         
         incomingChannel.onerror = (err) => {
-          console.error('Incoming data channel error:', err);
+          const incomingErrMsg = getErrorMessage(err);
+          console.error('Incoming data channel error:', err, incomingErrMsg, JSON.stringify(err));
         };
         
         incomingChannel.onmessage = (messageEvent) => {

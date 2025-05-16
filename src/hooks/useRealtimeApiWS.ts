@@ -40,6 +40,41 @@ export function useRealtimeApiWs({
   // Flag to prevent duplicate cleanup calls
   const isCleaningUpRef = useRef(false);
   
+  // Add a ref to cache session data and reduce latency
+  const sessionDataRef = useRef<RealtimeSession | null>(null);
+  
+  // Prefetch session data (ephemeral token) on mount or when model/voice change
+  const fetchSessionData = useCallback(async (): Promise<RealtimeSession | null> => {
+    try {
+      // Reuse token if not expired
+      if (sessionDataRef.current && new Date(sessionDataRef.current.client_secret.expires_at) > new Date()) {
+        return sessionDataRef.current;
+      }
+      console.log('Prefetching ephemeral token for Realtime API');
+      const response = await fetch('/api/realtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, voice }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Failed to prefetch ephemeral token:', response.status, text);
+        throw new Error(`Failed to prefetch ephemeral token: ${response.status} ${text}`);
+      }
+      const session = await response.json() as RealtimeSession;
+      sessionDataRef.current = session;
+      return session;
+    } catch (err) {
+      console.error('Error prefetching session data:', err);
+      return null;
+    }
+  }, [model, voice]);
+  
+  // Prefetch the token when the hook mounts for faster connect
+  useEffect(() => {
+    fetchSessionData();
+  }, [fetchSessionData]);
+  
   // Cleanup function
   const cleanup = useCallback(() => {
     // Prevent duplicate cleanup calls
@@ -92,35 +127,13 @@ export function useRealtimeApiWs({
       setIsConnecting(true);
       setError(null);
       
-      // 1. Get ephemeral token from our API route
-      console.log('Requesting ephemeral token from server');
-      const tokenResponse = await fetch('/api/realtime', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ model, voice }),
-      });
-      
-      if (!tokenResponse.ok) {
-        const errorBody = await tokenResponse.text();
-        console.error('Failed to get ephemeral token:', tokenResponse.status, errorBody);
-        throw new Error(`Failed to get ephemeral token: ${tokenResponse.status} ${errorBody}`);
-      }
-      
-      const sessionData: RealtimeSession = await tokenResponse.json();
-      console.log('Received session data:', { 
-        hasClientSecret: !!sessionData?.client_secret,
-        expires_at: sessionData?.client_secret?.expires_at,
-        model: sessionData?.model
-      });
-      
-      if (!sessionData?.client_secret?.value) {
+      // Use prefetched session data or fetch if needed
+      const session = await fetchSessionData();
+      if (!session?.client_secret?.value) {
         throw new Error('No client secret in session data');
       }
-      
-      const ephemeralKey = sessionData.client_secret.value;
-      const modelToUse = sessionData.model || model;
+      const ephemeralKey = session.client_secret.value;
+      const modelToUse = session.model || model;
       
       // 2. Create WebSocket connection
       console.log('Creating WebSocket connection');
@@ -215,12 +228,12 @@ export function useRealtimeApiWs({
       
     } catch (err) {
       console.error('Connection error:', err);
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      onError?.(error);
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      onError?.(errorObj);
       cleanup();
     }
-  }, [isConnected, isConnecting, model, voice, onMessage, onError, cleanup]);
+  }, [isConnected, isConnecting, model, onMessage, onError, cleanup, fetchSessionData]);
   
   // Disconnect from the Realtime API
   const disconnect = useCallback(() => {

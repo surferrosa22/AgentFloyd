@@ -14,14 +14,11 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcript, setTranscript] = useState<string>('');
 
   const startRecording = useCallback(async () => {
     setError(null);
     setAudioChunks([]);
     setAudioBlob(null);
-    setTranscript('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType });
@@ -35,16 +32,11 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
           if (onData) onData(e.data);
         }
       };
-      recorder.onstop = async () => {
+      recorder.onstop = () => {
         const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
         for (const track of stream.getTracks()) {
           track.stop();
-        }
-
-        // Automatically send the audio for transcription
-        if (onTranscription) {
-          await transcribeAudio(blob);
         }
       };
       recorder.start(200); // emit data every 200ms for streaming
@@ -54,7 +46,7 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
       setError(errorMessage);
       setIsRecording(false);
     }
-  }, [mimeType, onData, onTranscription]);
+  }, [mimeType, onData]);
 
   const stopRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
@@ -64,43 +56,12 @@ export function useAudioRecorder(options: UseAudioRecorderOptions = {}) {
     }
   }, []);
 
-  const transcribeAudio = async (blob: Blob) => {
-    try {
-      setIsTranscribing(true);
-
-      // Create FormData and append the audio blob
-      const formData = new FormData();
-      formData.append('audio', blob);
-
-      // Send to diarization API endpoint
-      const response = await axios.post('/api/diarize', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      const { text, error } = response.data;
-      if (error) {
-        throw new Error(error);
-      }
-      setTranscript(text);
-      if (onTranscription) onTranscription(text);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error during speaker diarization';
-      setError(errorMessage);
-      console.error('Transcription error:', err);
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
   return {
     isRecording,
     startRecording,
     stopRecording,
     audioChunks,
     audioBlob,
-    error,
-    isTranscribing,
-    transcript,
-    transcribeAudio
+    error
   };
 } 
